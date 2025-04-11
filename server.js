@@ -1,7 +1,10 @@
 const express = require("express");
 const mysql = require("mysql2");
 require("dotenv").config();
+const bodyParser = require('body-parser'); // added by takashi
+
 const app = express();
+app.use(bodyParser.json());// added by takashi
 
 const pool = mysql.createPool({
   host: process.env.MYSQL_HOST,
@@ -13,10 +16,25 @@ const pool = mysql.createPool({
   queueLimit: 0,
 });
 
+// MySQL connection check
+pool.getConnection((err) => {
+  if (err) throw err;
+  console.log('MySQL connected...');
+});
 
-//example
-app.get("/api/teacherdashboard/helprequest", (req, res) => {
-  pool.query("SELECT * FROM teacher", (err, result) => {
+// Shazias Endpoints here
+
+// Kerrys enpoints here
+
+// Solomene endpoint here
+
+// Eugenes end points here
+
+// Takashis endpoints here
+
+//Testing import student data by being modified with gender and succeed between backend and SQL server.
+app.get("/", (req, res) => {
+  pool.query("SELECT * FROM student_temp", (err, result) => {
     if (err) {
       console.error("Database query error", err);
       return res.status(500).json({
@@ -28,31 +46,22 @@ app.get("/api/teacherdashboard/helprequest", (req, res) => {
   });
 });
 
-
-// Shazias Endpoints here
-
-
-
-
-
-
-// Kerrys enpoints here
-
-
-
-
-
-// Solomene endpoint here
-
-
-
-
-// Eugenes end points here
-
-
-
-// Takashis endpoints here
-
+// Endpoint to get project information
+app.get('/api/student/:studentId/projects', (req, res) => {
+  const studentId = req.params.studentId;
+  const query = `
+    SELECT * FROM student_projects
+    WHERE student_id = ?
+  `;
+  
+  pool.query(query, [studentId], (err, results) => {
+    if (err) {
+      console.error("Database query error", err);
+      return res.status(500).json({ status: "error", message: "An error occurred while retrieving data." });
+    }
+    res.status(200).json({ status: "success", data: results });
+  });
+});
 
 
 
