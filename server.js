@@ -4,10 +4,12 @@ require("dotenv").config();
 const bodyParser = require("body-parser"); // added by takashi
 // const { UploadThing } = require("uploadthing");// added by takashi
 const multer = require("multer"); // added by takashi
-
+const cors = require("cors");
 const app = express();
-app.use(bodyParser.json()); // added by takashi
 
+//Middlewares
+app.use(bodyParser.json()); // added by takashi
+app.use(cors("http://localhost:5173"));
 
 const pool = mysql.createPool({
   host: process.env.MYSQL_HOST,
@@ -31,7 +33,43 @@ pool.getConnection((err) => {
 
 // Solomene endpoint here
 
-// Eugenes end points here
+// Eugene endpoints
+//// Student Profile
+app.get("/api/student", (req, res) => {
+  pool.query(
+    "SELECT name, profile_pic, student_id FROM student",
+    (err, result) => {
+      if (err) {
+        console.error("Database query error", err);
+        return res.status(500).json({
+          status: "error",
+          message: "something went wrong with that query",
+        });
+      }
+      res.status(200).json({ status: "success", data: result });
+    }
+  );
+});
+
+////Progress Tracker
+app.get("/api/completions", (req, res) => {
+  pool.query(
+    `SELECT student.student_id, student_projects.project_id, student.name, student_projects.date_completed
+    FROM student_projects
+    JOIN student ON student_projects.student_id = student.student_id
+    WHERE student_projects.date_completed IS NOT NULL`,
+    (err, result) => {
+      if (err) {
+        console.error("Database query error", err);
+        return res.status(500).json({
+          status: "error",
+          message: "something went wrong with that query",
+        });
+      }
+      res.status(200).json({ status: "success", data: result });
+    }
+  );
+});
 
 // Takashis endpoints here
 
