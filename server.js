@@ -9,6 +9,7 @@ const multer = require("multer"); // added by takashi
 const app = express();
 app.use(bodyParser.json()); // added by takashi
 
+
 // Create the connection with database
 const pool = mysql.createPool({
   host: process.env.MYSQL_HOST,
