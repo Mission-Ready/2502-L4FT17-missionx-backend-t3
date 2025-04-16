@@ -7,6 +7,10 @@ const bodyParser = require("body-parser"); // added by takashi
 const multer = require("multer"); // added by takashi
 const cors = require("cors");
 const app = express();
+const cors = require("cors"); // test
+
+// Middleware
+app.use(cors("http://localhost:5173")); //test
 
 //Middlewares
 app.use(bodyParser.json()); // added by takashi
@@ -38,7 +42,7 @@ app.get("/api/studentProfileViewer/:studentId", (req, res) => {
 
   pool.query('SELECT * FROM student WHERE student_id = ?', [studentId], (err, result) => {
     if (err) {
-      console.error("Database query error", err);
+      console.log("Database query error", err);
       return res.status(500).json({
         status: "error",
         message: "something went wrong with that query",
@@ -62,7 +66,37 @@ app.get("/api/projectLibrary", (req, res) => {
 });
 
 
-// Solomene endpoint here
+// Solomone endpoint here
+// Help-request end-point
+app.get("/api/request_page", (req, res) => {
+  pool.query(
+    "SELECT help_request.*, student.student_id, student.name, student.gender, student.profile_pic  FROM help_request INNER JOIN student ON help_request.student_id = student.student_id;",
+    (err, result) => {
+      if (err) {
+        console.log("Database query error", err);
+        return res.status(500).json({
+          status: "error",
+          message: "something went wrong with that query",
+        });
+      }
+      res.status(200).json({ status: "success", data: result });
+    }
+  );
+});
+
+// Teacher-profile end-point
+app.get("/api/teacher", (req, res) => {
+  pool.query("SELECT * FROM teacher;", (err, result) => {
+       if (err) {
+      console.log("Database query error", err);
+      return res.status(500).json({
+        status: "error",
+        message: "something went wrong with that query",
+      });
+    }
+    res.status(200).json({ status: "success", data: result });
+  });
+});
 
 
 // Eugenes end points here
@@ -249,6 +283,7 @@ app.patch('/api/student-dashboard/SubmitProject/store-submission', (req, res) =>
 });
 
 // -----------------------------------------end_of_takashi_section---------------------------------------------------
+
 
 app
   .listen(process.env.PORT, () => {
