@@ -8,9 +8,6 @@ const multer = require("multer"); // added by takashi
 const cors = require("cors");
 const app = express();
 
-// Middleware
-app.use(cors("http://localhost:5173")); //test
-
 //Middlewares
 app.use(bodyParser.json()); // added by takashi
 app.use(cors("http://localhost:5173"));
@@ -252,11 +249,9 @@ app.patch(
 
     // Check if any of the required fields are missing.
     if (!student_id || !project_id || !submission) {
-      return res
-        .status(400)
-        .json({
-          message: "student_id, project_id, and submission are required",
-        });
+      return res.status(400).json({
+        message: "student_id, project_id, and submission are required",
+      });
     }
 
     // This SQL statement updates an existing record in the student_projects table.
