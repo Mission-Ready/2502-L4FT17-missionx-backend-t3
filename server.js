@@ -7,15 +7,10 @@ const bodyParser = require("body-parser"); // added by takashi
 const multer = require("multer"); // added by takashi
 const cors = require("cors");
 const app = express();
-const cors = require("cors"); // test
-
-// Middleware
-app.use(cors("http://localhost:5173")); //test
 
 //Middlewares
 app.use(bodyParser.json()); // added by takashi
 app.use(cors("http://localhost:5173"));
-
 
 // Create the connection with database
 const pool = mysql.createPool({
@@ -40,20 +35,24 @@ pool.getConnection((err) => {
 app.get("/api/studentProfileViewer/:studentId", (req, res) => {
   const studentId = req.params.studentId;
 
-  pool.query('SELECT * FROM student WHERE student_id = ?', [studentId], (err, result) => {
-    if (err) {
-      console.log("Database query error", err);
-      return res.status(500).json({
-        status: "error",
-        message: "something went wrong with that query",
-      });
+  pool.query(
+    "SELECT * FROM student WHERE student_id = ?",
+    [studentId],
+    (err, result) => {
+      if (err) {
+        console.log("Database query error", err);
+        return res.status(500).json({
+          status: "error",
+          message: "something went wrong with that query",
+        });
+      }
+      res.status(200).json({ status: "success", data: result });
     }
-    res.status(200).json({ status: "success", data: result });
-  });
+  );
 });
 
 app.get("/api/projectLibrary", (req, res) => {
-  pool.query('SELECT * FROM project', (err, result) => {
+  pool.query("SELECT * FROM project", (err, result) => {
     if (err) {
       console.error("Database query error", err);
       return res.status(500).json({
@@ -64,7 +63,6 @@ app.get("/api/projectLibrary", (req, res) => {
     res.status(200).json({ status: "success", data: result });
   });
 });
-
 
 // Solomone endpoint here
 // Help-request end-point
@@ -87,7 +85,7 @@ app.get("/api/request_page", (req, res) => {
 // Teacher-profile end-point
 app.get("/api/teacher", (req, res) => {
   pool.query("SELECT * FROM teacher;", (err, result) => {
-       if (err) {
+    if (err) {
       console.log("Database query error", err);
       return res.status(500).json({
         status: "error",
@@ -97,7 +95,6 @@ app.get("/api/teacher", (req, res) => {
     res.status(200).json({ status: "success", data: result });
   });
 });
-
 
 // Eugenes end points here
 
@@ -138,7 +135,6 @@ app.get("/api/completions", (req, res) => {
     }
   );
 });
-
 
 // Takashis endpoints here--------------------------------------------------------------------------------------------
 // Project Submission: Getting Submission Card, Patch(updating) Mark as complete Project
@@ -229,12 +225,9 @@ app.patch(
       // If affectedRows is 0, it means no row matched the provided student_id and project_id,
       // so it responds with a 404 Not Found status and a message indicating that the project was not found.
       if (result.affectedRows === 0) {
-        return res
-          .status(404)
-          .json({
-            message:
-              "Project not found for the given student_id and project_id.",
-          });
+        return res.status(404).json({
+          message: "Project not found for the given student_id and project_id.",
+        });
       }
       // If at least one row was updated, it responds with a success message indicating that the project was marked as completed.
       res.json({ message: "Project marked as completed" });
@@ -242,48 +235,52 @@ app.patch(
   }
 );
 
-
 // Brown: Submit Project
 // After clicking the button in the frontend, the URL of the image is passed to the backend server
 // using Postman, and this URL is sent in the submission as a string.
 
-app.patch('/api/student-dashboard/SubmitProject/store-submission', (req, res) => {
-  console.log("patch end point hit"); // Added new test log
+app.patch(
+  "/api/student-dashboard/SubmitProject/store-submission",
+  (req, res) => {
+    console.log("patch end point hit"); // Added new test log
 
-  // Extract student_id, project_id, and submission from the request body.
-  const { student_id, project_id, submission } = req.body;
+    // Extract student_id, project_id, and submission from the request body.
+    const { student_id, project_id, submission } = req.body;
 
-  // Check if any of the required fields are missing.
-  if (!student_id || !project_id || !submission) {
-      return res.status(400).json({ message: 'student_id, project_id, and submission are required' });
-  }
+    // Check if any of the required fields are missing.
+    if (!student_id || !project_id || !submission) {
+      return res.status(400).json({
+        message: "student_id, project_id, and submission are required",
+      });
+    }
 
-  // This SQL statement updates an existing record in the student_projects table.
-  const sql = `
+    // This SQL statement updates an existing record in the student_projects table.
+    const sql = `
     UPDATE student_projects
     SET date_submitted = NOW(),         
         submission = ?
     WHERE student_id = ? AND project_id = ?; 
   `;
 
-  // Execute the SQL query.
-  pool.query(sql, [submission, student_id, project_id], (error, results) => { // project_id was added
+    // Execute the SQL query.
+    pool.query(sql, [submission, student_id, project_id], (error, results) => {
+      // project_id was added
       if (error) {
-          console.error('Error updating data:', error);
-          return res.status(500).json({ message: 'Internal server error' });
+        console.error("Error updating data:", error);
+        return res.status(500).json({ message: "Internal server error" });
       }
 
       // Determine the response based on affected rows.
       if (results.affectedRows > 0) {
-          res.status(200).json({ message: 'Submission updated successfully' });
+        res.status(200).json({ message: "Submission updated successfully" });
       } else {
-          res.status(404).json({ message: 'No record found to update' });
+        res.status(404).json({ message: "No record found to update" });
       }
-  });
-});
+    });
+  }
+);
 
 // -----------------------------------------end_of_takashi_section---------------------------------------------------
-
 
 app
   .listen(process.env.PORT, () => {
