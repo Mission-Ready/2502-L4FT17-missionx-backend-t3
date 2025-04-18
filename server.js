@@ -3,6 +3,7 @@ const mysql = require("mysql2");
 // Load Environment Variables
 require("dotenv").config();
 const bodyParser = require("body-parser"); // added by takashi
+
 // const { UploadThing } = require("uploadthing");// added by takashi for the future Mission X
 const multer = require("multer"); // added by takashi
 const cors = require("cors");
@@ -30,6 +31,8 @@ pool.getConnection((err) => {
 });
 
 // Shazias Endpoints here
+
+
 
 // Kerrys enpoints here
 app.get("/api/studentProfileViewer/:studentId", (req, res) => {
@@ -240,16 +243,16 @@ app.patch(
 app.patch(
   "/api/student-dashboard/SubmitProject/store-submission",
   (req, res) => {
-    console.log("patch end point hit"); // Added new test log
-
-    console.log("Request body:", req.body)
-
-    // Extract student_id, project_id, and submission from the request body.
+     // Extract student_id, project_id, and submission from the request body.
     // submission is the URL of the file I got from uploadthings.
-    const { student_id, project_id, ufsUrl } = req.body;
+    
+    const { student_id, project_id, submission } = req.body;
+    console.log("PATCH endpoint hit");
+    console.log("Request body:", req.body);
+   
 
      // Check if ufsUrl is provided
-     if (!ufsUrl) {
+     if (!submission) {
       return res.status(400).json({ status: "error", message: "Missing ufsUrl in the request body." });
     }
 
@@ -266,18 +269,6 @@ app.patch(
     // Leave the column names as submission as they are in My SQL.
     // It is used to record the date and time that an upload occurred,
     // so that I can track the exact time and date of submitted project when a file was submitted.
-
-
-    // Extract student_id, project_id, and submission from the request body.
-    const { student_id, project_id, submission } = req.body;
-
-    // Check if any of the required fields are missing.
-    if (!student_id || !project_id || !submission) {
-      return res.status(400).json({
-        message: "student_id, project_id, and submission are required",
-      });
-    }
-
     // This SQL statement updates an existing record in the student_projects table.
 
     const sql = `
@@ -299,17 +290,18 @@ app.patch(
     // These values ​​can vary for each request because we use the same endpoint for different students and projects.
 
     // 2. Increased flexibility
-    // Multiple operations with one endpoint: This design allows us to operate on different students and projects with the same API endpoint.
-    // By using dynamic parameters, we can handle many cases with the same code.
+    // Multiple operations with one endpoint: This design allows me to operate on different students and projects with the same API endpoint.
+    // By using dynamic parameters, I can handle many cases with the same code.
 
     // 3. Prevent SQL injection
     // Use placeholders: Filling in dynamic values ​​with placeholders prevents SQL injection attacks.
     // This ensures that user input is handled safely.
-    pool.query(sql, [ufsUrl, student_id, project_id], (error, results) => {
 
+    // Use submission: Since the column name in the database is submission,
+    // it is more consistent and logical to use that name in my code as well.
     pool.query(sql, [submission, student_id, project_id], (error, results) => {
 
-      // project_id was added
+    // project_id was added
       if (error) {
         console.error("Error updating data:", error);
         return res.status(500).json({ message: "Internal server error" });
@@ -321,16 +313,15 @@ app.patch(
       } else {
         res.status(404).json({ message: "No record found to update" });
       }
-    });
-  }
+    }); // The query callback ends here
+  } // End of endpoint processing here
 );
-
 // -----------------------------------------end_of_takashi_section---------------------------------------------------
 
 app
   .listen(process.env.PORT, () => {
     console.log(`Server listening at http://localhost:${process.env.PORT}`);
   })
-  .on(`error`, (error) => {
+  .on('error', (error) => {
     console.log("Server error", error);
   });
