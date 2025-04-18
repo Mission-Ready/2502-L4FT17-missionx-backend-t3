@@ -12,7 +12,6 @@ const app = express();
 app.use(bodyParser.json()); // added by takashi
 app.use(cors("http://localhost:5173"));
 
-
 // Create the connection with database
 const pool = mysql.createPool({
   host: process.env.MYSQL_HOST,
@@ -35,7 +34,6 @@ pool.getConnection((err) => {
 // Kerrys enpoints here
 
 // Solomene endpoint here
-
 
 // Eugenes end points here
 
@@ -77,17 +75,9 @@ app.get("/api/completions", (req, res) => {
   );
 });
 
-
 // Takashis endpoints here--------------------------------------------------------------------------------------------
 // Project Submission: Getting Submission Card, Patch(updating) Mark as complete Project
 // Submit projects: sending the imagery
-
-// Middleware
-app.use(bodyParser.json());
-
-// Setting Multer
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
 
 // Brown: Project Submission
 // Endpoint retrieves a list of student project submissions that are currently submitted but not completed.
@@ -120,6 +110,8 @@ WHERE
     student_projects.date_submitted IS NOT NULL 
     AND student_projects.date_completed IS NULL;
   `;
+  // If I need to retrieve specific information from two tables, and the keys are fixed,
+  // a static query is fine.Fixed keys: In that case, use a static query so not required alley[].
   pool.query(sql, (err, results) => {
     if (err) {
       // If an error occurs during execution,
@@ -167,12 +159,9 @@ app.patch(
       // If affectedRows is 0, it means no row matched the provided student_id and project_id,
       // so it responds with a 404 Not Found status and a message indicating that the project was not found.
       if (result.affectedRows === 0) {
-        return res
-          .status(404)
-          .json({
-            message:
-              "Project not found for the given student_id and project_id.",
-          });
+        return res.status(404).json({
+          message: "Project not found for the given student_id and project_id.",
+        });
       }
       // If at least one row was updated, it responds with a success message indicating that the project was marked as completed.
       res.json({ message: "Project marked as completed" });
@@ -180,45 +169,78 @@ app.patch(
   }
 );
 
-
 // Brown: Submit Project
 // After clicking the button in the frontend, the URL of the image is passed to the backend server
 // using Postman, and this URL is sent in the submission as a string.
 
-app.patch('/api/student-dashboard/SubmitProject/store-submission', (req, res) => {
-  console.log("patch end point hit"); // Added new test log
+app.patch(
+  "/api/student-dashboard/SubmitProject/store-submission",
+  (req, res) => {
+    console.log("patch end point hit"); // Added new test log
+    console.log("Request body:", req.body)
 
-  // Extract student_id, project_id, and submission from the request body.
-  const { student_id, project_id, submission } = req.body;
+    // Extract student_id, project_id, and submission from the request body.
+    // submission is the URL of the file I got from uploadthings.
+    const { student_id, project_id, ufsUrl } = req.body;
 
-  // Check if any of the required fields are missing.
-  if (!student_id || !project_id || !submission) {
-      return res.status(400).json({ message: 'student_id, project_id, and submission are required' });
-  }
+     // Check if ufsUrl is provided
+     if (!ufsUrl) {
+      return res.status(400).json({ status: "error", message: "Missing ufsUrl in the request body." });
+    }
 
-  // This SQL statement updates an existing record in the student_projects table.
-  const sql = `
+    // Check if student_id and project_id exist
+    if (!student_id || !project_id) {
+      return res.status(400).json({
+        message: "student_id and project_id are required",
+      });
+    }
+
+    // This SQL statement updates an existing record in the student_projects table.
+    // Executes a SQL query containing data_submitted the submission and updates the record for the specified student_id and project_id.
+    // The submission value changes dynamically.
+    // Leave the column names as submission as they are in My SQL.
+    // It is used to record the date and time that an upload occurred,
+    // so that I can track the exact time and date of submitted project when a file was submitted.
+    const sql = `
     UPDATE student_projects
     SET date_submitted = NOW(),         
-        submission = ?
+        submission = ? 
     WHERE student_id = ? AND project_id = ?; 
   `;
 
-  // Execute the SQL query.
-  pool.query(sql, [submission, student_id, project_id], (error, results) => { // project_id was added
+    // Execute the SQL query.
+    // If the submission content is different each time, I will receive a dynamic URL.
+    // This URL will change every time a user uploads a file, so the SQL query will be updated each time.
+    // The reason why student_id and project_id are also dynamic is because these values ​​vary depending on the user and the specific request.
+    // Specifically, there are the following reasons:
+    
+    // 1. Based on user input
+    // Different users and projects: student_id identifies a specific student and project_id identifies a specific project.
+    // These values ​​can vary for each request because we use the same endpoint for different students and projects.
+
+    // 2. Increased flexibility
+    // Multiple operations with one endpoint: This design allows us to operate on different students and projects with the same API endpoint.
+    // By using dynamic parameters, we can handle many cases with the same code.
+
+    // 3. Prevent SQL injection
+    // Use placeholders: Filling in dynamic values ​​with placeholders prevents SQL injection attacks.
+    // This ensures that user input is handled safely.
+    pool.query(sql, [ufsUrl, student_id, project_id], (error, results) => {
+      // project_id was added
       if (error) {
-          console.error('Error updating data:', error);
-          return res.status(500).json({ message: 'Internal server error' });
+        console.error("Error updating data:", error);
+        return res.status(500).json({ message: "Internal server error" });
       }
 
       // Determine the response based on affected rows.
       if (results.affectedRows > 0) {
-          res.status(200).json({ message: 'Submission updated successfully' });
+        res.status(200).json({ message: "Submission updated successfully" });
       } else {
-          res.status(404).json({ message: 'No record found to update' });
+        res.status(404).json({ message: "No record found to update" });
       }
-  });
-});
+    });
+  }
+);
 
 // -----------------------------------------end_of_takashi_section---------------------------------------------------
 
