@@ -32,8 +32,72 @@ pool.getConnection((err) => {
 // Shazias Endpoints here
 
 // Kerrys enpoints here
+app.get("/api/studentProfileViewer/:studentId", (req, res) => {
+  const studentId = req.params.studentId;
 
-// Solomene endpoint here
+  pool.query(
+    "SELECT * FROM student WHERE student_id = ?",
+    [studentId],
+    (err, result) => {
+      if (err) {
+        console.log("Database query error", err);
+        return res.status(500).json({
+          status: "error",
+          message: "something went wrong with that query",
+        });
+      }
+      res.status(200).json({ status: "success", data: result });
+    }
+  );
+});
+
+
+
+app.get("/api/projectLibrary", (req, res) => {
+  pool.query("SELECT * FROM project", (err, result) => {
+    if (err) {
+      console.error("Database query error", err);
+      return res.status(500).json({
+        status: "error",
+        message: "Database query failed",
+      });
+    }
+    res.status(200).json({ status: "success", data: result });
+  });
+});
+
+// Solomone endpoint here
+// Help-request end-point
+app.get("/api/request_page", (req, res) => {
+  pool.query(
+    "SELECT help_request.*, student.student_id, student.name, student.gender, student.profile_pic  FROM help_request INNER JOIN student ON help_request.student_id = student.student_id;",
+    (err, result) => {
+      if (err) {
+        console.log("Database query error", err);
+        return res.status(500).json({
+          status: "error",
+          message: "something went wrong with that query",
+        });
+      }
+      res.status(200).json({ status: "success", data: result });
+    }
+  );
+});
+
+// Teacher-profile end-point
+app.get("/api/teacher", (req, res) => {
+  pool.query("SELECT * FROM teacher;", (err, result) => {
+    if (err) {
+      console.log("Database query error", err);
+      return res.status(500).json({
+        status: "error",
+        message: "something went wrong with that query",
+      });
+    }
+    res.status(200).json({ status: "success", data: result });
+  });
+});
+
 
 // Eugenes end points here
 
@@ -177,6 +241,7 @@ app.patch(
   "/api/student-dashboard/SubmitProject/store-submission",
   (req, res) => {
     console.log("patch end point hit"); // Added new test log
+
     console.log("Request body:", req.body)
 
     // Extract student_id, project_id, and submission from the request body.
@@ -201,6 +266,20 @@ app.patch(
     // Leave the column names as submission as they are in My SQL.
     // It is used to record the date and time that an upload occurred,
     // so that I can track the exact time and date of submitted project when a file was submitted.
+
+
+    // Extract student_id, project_id, and submission from the request body.
+    const { student_id, project_id, submission } = req.body;
+
+    // Check if any of the required fields are missing.
+    if (!student_id || !project_id || !submission) {
+      return res.status(400).json({
+        message: "student_id, project_id, and submission are required",
+      });
+    }
+
+    // This SQL statement updates an existing record in the student_projects table.
+
     const sql = `
     UPDATE student_projects
     SET date_submitted = NOW(),         
@@ -209,6 +288,7 @@ app.patch(
   `;
 
     // Execute the SQL query.
+
     // If the submission content is different each time, I will receive a dynamic URL.
     // This URL will change every time a user uploads a file, so the SQL query will be updated each time.
     // The reason why student_id and project_id are also dynamic is because these values ​​vary depending on the user and the specific request.
@@ -226,6 +306,9 @@ app.patch(
     // Use placeholders: Filling in dynamic values ​​with placeholders prevents SQL injection attacks.
     // This ensures that user input is handled safely.
     pool.query(sql, [ufsUrl, student_id, project_id], (error, results) => {
+
+    pool.query(sql, [submission, student_id, project_id], (error, results) => {
+
       // project_id was added
       if (error) {
         console.error("Error updating data:", error);
