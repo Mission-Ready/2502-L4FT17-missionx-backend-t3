@@ -87,18 +87,74 @@ app.get("/api/request_page", (req, res) => {
   );
 });
 
-// Teacher-profile end-point
-app.get("/api/teacher", (req, res) => {
-  pool.query("SELECT * FROM teacher;", (err, result) => {
-    if (err) {
-      console.log("Database query error", err);
-      return res.status(500).json({
-        status: "error",
-        message: "something went wrong with that query",
+// Update help-request end-point
+app.patch("/api/markAsDone", (req, res) => {
+  console.log(req.body);
+
+  if (!req.body) {
+    return res.status(400).json({
+      status: "error",
+      message: "Request body is missing or improperly formatted",
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  const { request_id } = req.body;
+  const updatedAt = new Date();
+  const done = 1;
+
+  if (!request_id) {
+    return res.status(400).json({
+      status: "error",
+      message: "request_id is required to update the record",
+    });
+  }
+
+  pool.query(
+    "UPDATE help_request SET updated_at = ?, done = ? WHERE request_id = ?",
+    [updatedAt, done, request_id],
+    (err, result) => {
+      if (err) {
+        console.error("Database update error", err);
+        return res.status(500).json({
+          status: "error",
+          message: "Failed to update the record",
+        });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          status: "error",
+          message: "No record found with the given request_id",
+        });
+      }
+
+      res.status(200).json({
+        status: "success",
+        message: "Record updated successfully",
+        updated_at: updatedAt,
       });
     }
-    res.status(200).json({ status: "success", data: result });
-  });
+  );
+});
+
+// Teacher Profile end-point
+app.get("/api/teacher/:Id", (req, res) => {
+  const Id = req.params.Id;
+  pool.query(
+    "SELECT * FROM teacher WHERE teacher_id = ?",
+    [Id],
+    (err, result) => {
+      if (err) {
+        console.log("Database query error", err);
+        return res.status(500).json({
+          status: "error",
+          message: "something went wrong with that query",
+        });
+      }
+      res.status(200).json({ status: "success", data: result });
+    }
+  );
 });
 
 
