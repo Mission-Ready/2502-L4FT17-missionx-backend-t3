@@ -1,17 +1,36 @@
+//express: A framework for building web applications.
 const express = require("express");
 const mysql = require("mysql2");
 // Load Environment Variables
+// dotenv: A library for managing environment variables,
+// allowing you to safely manage secrets such as API keys.
 require("dotenv").config();
-const bodyParser = require("body-parser"); // added by takashi
-
-// const { UploadThing } = require("uploadthing");// added by takashi for the future Mission X
-const multer = require("multer"); // added by takashi
-const cors = require("cors");
+const bodyParser = require("body-parser"); 
+// cors: For managing cross-origin resource sharing,
+// allowing requests between different domains.
+const cors = require("cors"); // Make sure this is only once
+//Uploadthings
+const { createRouteHandler } = require("uploadthing/express");
+// Import the UploadThing handler
+const { uploadRouter } = require("./uploadthing"); // import uploadthing.js
+// Initialize app here
+// app is the main body of our web application.
+// We use it to set up the various routes (URLs).
 const app = express();
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 //Middlewares
 app.use(bodyParser.json()); // added by takashi
-app.use(cors("http://localhost:5173"));
+//Here we are allowing requests from the frontend URL
+// (in this case http://localhost:5173),
+// which allows the browser to access resources on a different domain.
+app.use(
+  cors({
+    origin: "http://localhost:5173", // Specify the frontend URL
+  })
+);
 
 // Create the connection with database
 const pool = mysql.createPool({
@@ -32,8 +51,6 @@ pool.getConnection((err) => {
 
 // Shazias Endpoints here
 
-
-
 // Kerrys enpoints here
 app.get("/api/studentProfileViewer/:studentId", (req, res) => {
   const studentId = req.params.studentId;
@@ -53,8 +70,6 @@ app.get("/api/studentProfileViewer/:studentId", (req, res) => {
     }
   );
 });
-
-
 
 app.get("/api/projectLibrary", (req, res) => {
   pool.query("SELECT * FROM project", (err, result) => {
@@ -101,7 +116,6 @@ app.get("/api/teacher", (req, res) => {
   });
 });
 
-
 // Eugenes end points here
 
 // Eugene endpoints
@@ -144,7 +158,7 @@ app.get("/api/completions", (req, res) => {
 
 // Takashis endpoints here--------------------------------------------------------------------------------------------
 // Project Submission: Getting Submission Card, Patch(updating) Mark as complete Project
-// Submit projects: sending the imagery
+// Submit projects: sending the imagery by url retured the repose fro uploadthings.
 
 // Brown: Project Submission
 // Endpoint retrieves a list of student project submissions that are currently submitted but not completed.
@@ -237,29 +251,53 @@ app.patch(
 );
 
 // Brown: Submit Project
+// Set the route for UploadThing
+// This section configures the endpoint for uploading images.
+// It uses the uploadthing library to create a route to handle the images.
+app.use(
+  "/api/student-dashboard/SubmitProject/uploadthing",
+  createRouteHandler({
+    router: uploadRouter,
+    config: {
+      token: process.env.UPLOADTHING_TOKEN, // Get the token from an environment variable
+    },
+  })
+);
+
+// Here we define the content (text and image) to be returned.
+// Initially, uploadedImageUrl is set to a fixed image path.
+// Image content (use URL after upload)
+let uploadedImageUrl = "makeProject-screenshot.png"; // Initial
+
 // After clicking the button in the frontend, the URL of the image is passed to the backend server
-// using Postman, and this URL is sent in the submission as a string.
+// and this created new ufsUrl is sent in the submission as a string.
+// The /api/student-dashboard/SubmitProject/store-submission endpoint
+// receives the submission URL from the frontend.
+// The backend checks if the submission ufsUrl is provided and
+// updates the database record with this ufsUrl.
 
 app.patch(
   "/api/student-dashboard/SubmitProject/store-submission",
   (req, res) => {
-     // Extract student_id, project_id, and submission from the request body.
+    // Extract student_id, project_id, and submission from the request body.
     // submission is the URL of the file I got from uploadthings.
-    
+
     const { student_id, project_id, submission } = req.body;
     console.log("PATCH endpoint hit");
     console.log("Request body:", req.body);
-   
 
-     // Check if ufsUrl is provided
-     if (!submission) {
-      return res.status(400).json({ status: "error", message: "Missing ufsUrl in the request body." });
+    // Check if ufsUrl is provided
+    if (!submission) {
+      return res.status(400).json({
+        status: "error",
+        message: "Missing submission ufsUrl in the request body.",
+      });
     }
 
     // Check if student_id and project_id exist
     if (!student_id || !project_id) {
       return res.status(400).json({
-        message: "student_id and project_id are required",
+        message: "Both student_id and project_id are required",
       });
     }
 
@@ -284,7 +322,7 @@ app.patch(
     // This URL will change every time a user uploads a file, so the SQL query will be updated each time.
     // The reason why student_id and project_id are also dynamic is because these values ​​vary depending on the user and the specific request.
     // Specifically, there are the following reasons:
-    
+
     // 1. Based on user input
     // Different users and projects: student_id identifies a specific student and project_id identifies a specific project.
     // These values ​​can vary for each request because we use the same endpoint for different students and projects.
@@ -300,8 +338,7 @@ app.patch(
     // Use submission: Since the column name in the database is submission,
     // it is more consistent and logical to use that name in my code as well.
     pool.query(sql, [submission, student_id, project_id], (error, results) => {
-
-    // project_id was added
+      // project_id was added
       if (error) {
         console.error("Error updating data:", error);
         return res.status(500).json({ message: "Internal server error" });
@@ -309,19 +346,59 @@ app.patch(
 
       // Determine the response based on affected rows.
       if (results.affectedRows > 0) {
+        // If the update is successful, it returns a success message.
         res.status(200).json({ message: "Submission updated successfully" });
       } else {
+        // If the record to be updated is not found, it returns an appropriate error message.
         res.status(404).json({ message: "No record found to update" });
       }
     }); // The query callback ends here
   } // End of endpoint processing here
 );
+
+app.get(
+  "/api/student-dashboard/SubmitProject/get-submission/:student_id/:project_id",
+  (req, res) => {
+    const { student_id, project_id } = req.params;
+
+    const sql = `
+  SELECT submission
+  FROM student_projects
+  WHERE student_id = ? AND project_id = ?;
+  `;
+    pool.query(sql, [student_id, project_id], (error, results) => {
+      if (error) {
+        console.error("Error fetching data:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+
+      if (results.length > 0) {
+        res.status(200).json({ submission: results[0].submission });
+      } else {
+        res.status(404).json({ message: "No record found" });
+      }
+    });
+  }
+);
+
+app.get('/student-dashboard/learningObjectives', (request, response) => {
+  // define learning object
+  const learningObjectives = [
+      { id: 1, objective: "learning object 1" },
+      { id: 2, objective: "learning object 2" },      
+  ];
+
+  // return response learningObjectives
+  response.json(learningObjectives);
+});
+
+
 // -----------------------------------------end_of_takashi_section---------------------------------------------------
 
 app
   .listen(process.env.PORT, () => {
     console.log(`Server listening at http://localhost:${process.env.PORT}`);
   })
-  .on('error', (error) => {
+  .on("error", (error) => {
     console.log("Server error", error);
   });
