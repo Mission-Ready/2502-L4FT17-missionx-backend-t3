@@ -28,9 +28,12 @@ app.use(bodyParser.json()); // added by takashi
 // which allows the browser to access resources on a different domain.
 app.use(
   cors({
-    origin: "http://localhost:5173", // Specify the frontend URL
+    origin: "http://localhost:5173",
+    methods: ['GET', 'POST', 'PATCH'], // added by takashi due to not working in testing uploadthings, sorry for team member to change in here.
+     // Specify the frontend URL
   })
 );
+
 
 // Create the connection with database
 const pool = mysql.createPool({
@@ -412,10 +415,20 @@ app.patch(
   } // End of endpoint processing here
 );
 
+
+// const image ="image"
+const makeProjectimage = '<image src="makeProject-screenshot.png" style="width:30vw;"/>';
+
+app.get("/image", (req, res) => {
+  console.log("image end point hit");
+  res.json({ content: image });
+});
+
 app.get(
   "/api/student-dashboard/SubmitProject/get-submission/:student_id/:project_id",
   (req, res) => {
     const { student_id, project_id } = req.params;
+    console.log(`This is the end points of student_id: ${student_id}, and project_id: ${project_id}.`);
 
     const sql = `
   SELECT submission
@@ -437,17 +450,42 @@ app.get(
   }
 );
 
-app.get('/student-dashboard/learningObjectives', (request, response) => {
-  // define learning object
-  const learningObjectives = [
-      { id: 1, objective: "learning object 1" },
-      { id: 2, objective: "learning object 2" },      
-  ];
-
-  // return response learningObjectives
-  response.json(learningObjectives);
+// student-dashboard
+// Route for the learning objectives page
+app.get('/student-dashboard/learningObjectives', (req, res) => {
+  // Respond with a message indicating the page is not available
+  res.send("This learning objectives page is not available and we will update soon. ");
 });
 
+// Route for the instructions page
+app.get('/student-dashboard/instructions', (req, res) => {
+  // Respond with a message indicating the page is not available
+  res.send("This instruction page is not available and we will update soon. ");
+});
+
+// Route for the video tutorial page
+app.get('/student-dashboard/videoTutorial', (req, res) => {
+  // Respond with a message indicating the page is not available
+  res.send("This video tutorial page is not available and we will update soon. ");
+});
+
+// Route for the market report page
+app.get('/student-dashboard/marketReport', (req, res) => {
+  // Respond with a message indicating the page is not available
+  res.send("This market report page is not available and we will update soon. ");
+});
+
+// Route for the bonus challenge page
+app.get('/student-dashboard/bonusChallenge', (req, res) => {
+  // Respond with a message indicating the page is not available
+  res.send("This bonus challenge page is not available and we will update soon. ");
+});
+
+// Route for the take the quiz page
+app.get('/student-dashboard/takeTheQuiz', (req, res) => {
+  // Respond with a message indicating the page is not available
+  res.send("This take the quiz page is not available and we will update soon. ");
+});
 
 // -----------------------------------------end_of_takashi_section---------------------------------------------------
 
