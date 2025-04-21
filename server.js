@@ -147,7 +147,7 @@ app.post("/signup/student", (req, res) => {
   console.log(req.body);
   
 
-  const { name, email, password, confirmPassword } = req.body.studentSignUpForm;
+  const { name, email, password, confirmPassword } = req.body;
 
   console.log(
     "Received student sign-up form:",
@@ -158,10 +158,109 @@ app.post("/signup/student", (req, res) => {
   );
 
   pool.query(
-    `INSERT INTO Teacher_log_in_details (name,email,password,confirmPassword)
-VALUES (?,?,?,?);`, [name, email, password, confirmPassword],
+    `Select email FROM Log_in_details Where Email = ?; `, [email], (err, result) => {
+      if (err) {
+        console.error("Database error during email check", err);
+        return res.status(500).json({
+          status: "Error",
+          message: "Server error during email check",
+        });
+      }
+      if (result.length > 0) {
+        return res.status(400).json(
+          {
+            status: "EmailError",
+            message: "Email already exists",
+          }
+        );
+      }
+
+      pool.query(
+        `INSERT INTO Log_in_details (name,email,password,confirmPassword)
+VALUES (?,?,?,?);`,
+        [name, email, password, confirmPassword],
+        (err, result) => {
+          console.log(result);
+          if (err) {
+            console.error("SignUp Error", err);
+            return res.status(501).json({
+              status: "Error",
+              message: "Something went wrong with the sign up process",
+            });
+          }
+      
+          return res.status(201).json({
+            status: "Success",
+            message: "Student sign up successful"
+          });
+          
+        }
+      );
+
+
+    });
+});
+
+
+
+
+// Teacher Sign up Endpoint
+
+app.post("/signup/teacher", (req, res) => {
+  console.log("teacher signup endpoint hit");
+  console.log(req.body);
+
+  const { name, email, password, confirmPassword } = req.body;
+
+  console.log(
+    "Received teacher sign-up form:",
+    name,
+    email,
+    password,
+    confirmPassword
   );
-})
+
+  pool.query(
+    `Select email Teacher_log_in_details Where Email = ?; `,
+    [email],
+    (err, result) => {
+      if (err) {
+        console.error("Database error during email check", err);
+        return res.status(500).json({
+          status: "Error",
+          message: "Server error during email check",
+        });
+      }
+      if (result.length > 0) {
+        return res.status(400).json({
+          status: "EmailError",
+          message: "Email already exists",
+        });
+      }
+
+      pool.query(
+        `INSERT INTO Teacher_log_in_details (name,email,password,confirmPassword)
+VALUES (?,?,?,?);`,
+        [name, email, password, confirmPassword],
+        (err, result) => {
+          console.log(result);
+          if (err) {
+            console.error("SignUp Error", err);
+            return res.status(501).json({
+              status: "Error",
+              message: "Something went wrong with the sign up process",
+            });
+          }
+          return res.status(201).json({
+            status: "Success",
+            message: "Teacher sign up successful",
+          });
+        }
+      );
+    }
+  );
+  
+});
 
 // Kerrys enpoints here
 
