@@ -49,6 +49,7 @@ app.get("/api/studentProfileViewer/:studentId", (req, res) => {
 });
 
 app.get("/api/projectLibrary", (req, res) => {
+
   pool.query('SELECT * FROM project', (err, result) => {
     if (err) {
       console.error("Database query error", err);
