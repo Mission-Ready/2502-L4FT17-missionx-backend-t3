@@ -107,7 +107,7 @@ app.get("/api/request_page", (req, res) => {
 });
 
 // Update help-request end-point
-app.patch("/api/markAsDone", (req, res) => {
+app.put("/api/markAsDone", (req, res) => {
   console.log(req.body);
 
   if (!req.body) {
@@ -410,7 +410,11 @@ app.patch(
     if (!submission) {
       return res.status(400).json({
         status: "error",
+
+    
+
         message: "Missing submission ufsUrl in the request body.",
+
       });
     }
 
