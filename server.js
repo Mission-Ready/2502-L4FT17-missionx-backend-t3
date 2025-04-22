@@ -32,8 +32,6 @@ pool.getConnection((err) => {
 
 // Shazias Endpoints here
 
-
-
 // Kerrys enpoints here
 app.get("/api/studentProfileViewer/:studentId", (req, res) => {
   const studentId = req.params.studentId;
@@ -53,8 +51,6 @@ app.get("/api/studentProfileViewer/:studentId", (req, res) => {
     }
   );
 });
-
-
 
 app.get("/api/projectLibrary", (req, res) => {
   pool.query("SELECT * FROM project", (err, result) => {
@@ -88,7 +84,7 @@ app.get("/api/request_page", (req, res) => {
 });
 
 // Update help-request end-point
-app.patch("/api/markAsDone", (req, res) => {
+app.put("/api/markAsDone", (req, res) => {
   console.log(req.body);
 
   if (!req.body) {
@@ -156,7 +152,6 @@ app.get("/api/teacher/:Id", (req, res) => {
     }
   );
 });
-
 
 // Eugenes end points here
 
@@ -299,17 +294,19 @@ app.patch(
 app.patch(
   "/api/student-dashboard/SubmitProject/store-submission",
   (req, res) => {
-     // Extract student_id, project_id, and submission from the request body.
+    // Extract student_id, project_id, and submission from the request body.
     // submission is the URL of the file I got from uploadthings.
-    
+
     const { student_id, project_id, submission } = req.body;
     console.log("PATCH endpoint hit");
     console.log("Request body:", req.body);
-   
 
-     // Check if ufsUrl is provided
-     if (!submission) {
-      return res.status(400).json({ status: "error", message: "Missing ufsUrl in the request body." });
+    // Check if ufsUrl is provided
+    if (!submission) {
+      return res.status(400).json({
+        status: "error",
+        message: "Missing ufsUrl in the request body.",
+      });
     }
 
     // Check if student_id and project_id exist
@@ -340,7 +337,7 @@ app.patch(
     // This URL will change every time a user uploads a file, so the SQL query will be updated each time.
     // The reason why student_id and project_id are also dynamic is because these values ​​vary depending on the user and the specific request.
     // Specifically, there are the following reasons:
-    
+
     // 1. Based on user input
     // Different users and projects: student_id identifies a specific student and project_id identifies a specific project.
     // These values ​​can vary for each request because we use the same endpoint for different students and projects.
@@ -356,8 +353,7 @@ app.patch(
     // Use submission: Since the column name in the database is submission,
     // it is more consistent and logical to use that name in my code as well.
     pool.query(sql, [submission, student_id, project_id], (error, results) => {
-
-    // project_id was added
+      // project_id was added
       if (error) {
         console.error("Error updating data:", error);
         return res.status(500).json({ message: "Internal server error" });
@@ -378,6 +374,6 @@ app
   .listen(process.env.PORT, () => {
     console.log(`Server listening at http://localhost:${process.env.PORT}`);
   })
-  .on('error', (error) => {
+  .on("error", (error) => {
     console.log("Server error", error);
   });
