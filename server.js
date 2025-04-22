@@ -1,11 +1,11 @@
 //express: A framework for building web applications.
 const express = require("express");
-const mysql = require('mysql2/promise'); // Import mysql2 with Promise support
+const mysql = require("mysql2"); // Import mysql2 
 // Load Environment Variables
 // dotenv: A library for managing environment variables,
 // allowing you to safely manage secrets such as API keys.
 require("dotenv").config();
-const bodyParser = require("body-parser"); 
+const bodyParser = require("body-parser");
 // cors: For managing cross-origin resource sharing,
 // allowing requests between different domains.
 const cors = require("cors"); // Make sure this is only once
@@ -17,7 +17,7 @@ const { uploadRouter } = require("./uploadthing"); // import uploadthing.js
 // app is the main body of our web application.
 // We use it to set up the various routes (URLs).
 const app = express();
-const { param, validationResult } = require('express-validator'); // Import param instead of body
+const { param, validationResult } = require("express-validator"); // Import param instead of body
 // Middleware to handle JSON requests
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -27,14 +27,14 @@ app.use(bodyParser.json()); // added by takashi
 //Here we are allowing requests from the frontend URL
 // (in this case http://localhost:5173),
 // which allows the browser to access resources on a different domain.
-app.use(
-  cors({
-    origin: "http://localhost:5173",
-    methods: ['GET', 'POST', 'PATCH'], // added by takashi due to not working in testing uploadthings, sorry for team member to change in here.
-     // Specify the frontend URL
-  })
-);
-
+// app.use(
+//   cors({
+//     origin: "http://localhost:5173",
+//     methods: ["GET", "POST", "PATCH"], // added by takashi due to not working in testing uploadthings, sorry for team member to change in here.
+//     // Specify the frontend URL
+//   })
+// );
+app.use(cors("http://localhost:5173"));
 
 // Create the connection with database
 const pool = mysql.createPool({
@@ -227,17 +227,19 @@ app.get("/api/completions", (req, res) => {
 // profile_pic, gender(M/F), date_submitted, submission status,
 
 //  GET request endpoint that responds to requests made to /api/teacher-dashboard/ProjectSubmission/project-card .
-app.get("/api/teacher-dashboard/ProjectSubmission/project-card/:teacherId", async (req, res) => {
-  console.log("project submission endpoint hit")
-  const teacherId = req.params.teacherId;
-  console.log(teacherId)
-  // Selects data from the student table and student_projects tables and retrieves the following fields;
-  // INNER JOIN to link the student and student_projects tables based on the same unique student_id.
-  // WHERE clause filters results to include only those submissions
-  // that have been submitted (date_submitted IS NOT NULL) and
-  // have not been marked as completed (date_completed IS NULL)
-  // because teacher needs to track who submitted projects and still working on their own project which is not marked as completed project.
-  const sql = `
+app.get(
+  "/api/teacher-dashboard/ProjectSubmission/project-card/:teacherId",
+  async (req, res) => {
+    console.log("project submission endpoint hit");
+    const teacherId = req.params.teacherId;
+    console.log(teacherId);
+    // Selects data from the student table and student_projects tables and retrieves the following fields;
+    // INNER JOIN to link the student and student_projects tables based on the same unique student_id.
+    // WHERE clause filters results to include only those submissions
+    // that have been submitted (date_submitted IS NOT NULL) and
+    // have not been marked as completed (date_completed IS NULL)
+    // because teacher needs to track who submitted projects and still working on their own project which is not marked as completed project.
+    const sql = `
 SELECT 
     student.student_id, 
     student_projects.project_id, 
@@ -255,96 +257,115 @@ WHERE
     AND student_projects.date_completed IS NULL
     AND student.teacher_id = (?);
   `;
-  // If I need to retrieve specific information from two tables, and the keys are fixed,
-  // a static query is fine.Fixed keys: In that case, use a static query so not required alley[].
-   try {
-    const result = await pool.query(sql, [teacherId])
-     // If the query is successful, it returns the results as JSON format.
-    res.json(result);
-    console.log(result)
-  } catch (err) {
-    // If an error occurs during execution,
+    // If I need to retrieve specific information from two tables, and the keys are fixed,
+    // a static query is fine.Fixed keys: In that case, use a static query so not required alley[].
+    try {
+      const result = await pool.query(sql, [teacherId]);
+      // If the query is successful, it returns the results as JSON format.
+      res.json(result);
+      console.log(result);
+    } catch (err) {
+      // If an error occurs during execution,
       // it responds with a 500 Internal Server Error status and a message indicating an issue in retrieving projects.
-     
-    res.status(500).send("Error retrieving projects");
-  };
-});
 
-// GET endpoint to retrieve teacher information
-// app.get('/api/teacher-dashboard/ProjectSubmission/teacher/:teacherId', 
-//   [
-//       param('teacherId').isNumeric().withMessage('teacherId must be a numeric value')
-//   ],
-//   async (req, res) => {
-//       const teacherId = req.params.teacherId;
-// 
-//       // Validate request
-//       const errors = validationResult(req);
-//       if (!errors.isEmpty()) {
-//           return res.status(400).json({ errors: errors.array() });
-//       }
-// 
-//       
-//       const sql = "SELECT * FROM teacher WHERE teacher_id = ?"; // teachers table
-// 
-//       try {
-//           // Query the database
-//           const [results] = await pool.query(sql, [teacherId]);
-// 
-//           // If results are found
-//           if (results.length > 0) {
-//               return res.json(results[0]); // Return the information of the first teacher.
-//           } else {
-//               return res.status(404).json({ message: "Teacher not found" });
-//           }
-//       } catch (err) {
-//           console.error("Database error:", err); // Log the error
-//           return res.status(500).json({ error: "Internal server error", details: err.message });
-//       }
-//   }
-// );
+      res.status(500).send("Error retrieving projects");
+    }
+  }
+);
 
-//Project marked as completed
-// Endpoint allows a teacher to mark a specific project as completed for a student by updating the corresponding record in the database.
-// PATCH request endpoint that responds to requests made from frontend to /api/teacher-dashboard/ProjectSubmission/markCompleted.
+// Brown: Project Submission
+// Defines a PATCH endpoint at /api/teacher-dashboard/ProjectSubmission/markCompleted.
+// It is designed to update the date_completed field in the student_projects table for a list of student projects that have been marked as completed.
+// Handles the marking of student projects as completed by validating input, executing SQL updates, and managing responses based on the outcome of those updates.
 app.patch(
   "/api/teacher-dashboard/ProjectSubmission/markCompleted",
   (req, res) => {
-    const { student_id, project_id } = req.body;
+    //  logs the incoming request body to the console for debugging purposes.
+    //  It helps in verifying what data is being sent to the server.
+    console.log("Received request body:", req.body); // Output the request body to the log
+    // Destructuring Request Body:
+    // The studentProjectsMarked variable is extracted from the request body.
+    // This variable is expected to be an array containing objects with student_id and project_id.
+    const { studentProjectsMarked } = req.body;
 
-    //input validation based on extracts student_id and project_id from the request body.
-    // checks if both values are provided. If either is missing,
-    // it responds with a 400 Bad Request status and an error message.
-    if (!student_id || !project_id) {
+    // Check that studentProjectsMarked is an array and is not empty
+    // Check if studentProjectsMarked is provided
+    // If studentProjectsMarked is not present in the request,
+    // a 400 Bad Request response is returned with an error message indicating that this field is required.
+    if (!studentProjectsMarked) {
       return res
         .status(400)
-        .json({ error: "student_id and project_id are required." });
+        .json({ error: "studentProjectsMarked is required." });
     }
 
-    // updates the student_projects table by setting date_completed to the current timestamp (NOW())
-    // for the specified student_id and project_id.
-    const sql =
-      "UPDATE student_projects SET date_completed = NOW() WHERE student_id = ? AND project_id = ?";
+    // Check if studentProjectsMarked is an array
+    // This checks if studentProjectsMarked is an array.
+    // If not, it returns a 400 response with a message stating that it must be an array.
+    if (!Array.isArray(studentProjectsMarked)) {
+      return res
+        .status(400)
+        .json({ error: "studentProjectsMarked must be an array." });
+    }
 
-    pool.query(sql, [student_id, project_id], (err, result) => {
-      // If there’s an error during the execution,
-      // it responds with a 500 Internal Server Error status and an error message.
-      if (err) {
-        return res
-          .status(500)
-          .json({ error: "Error marking project as completed" });
-      }
+    // Check if studentProjectsMarked is not empty
+    // This checks if the array is empty. If it is,
+    // a 400 response is returned indicating that the array cannot be empty.
+    if (studentProjectsMarked.length === 0) {
+      return res
+        .status(400)
+        .json({ error: "studentProjectsMarked must not be an empty array." });
+    }
 
-      // when no rows are not updating return 404
-      // If affectedRows is 0, it means no row matched the provided student_id and project_id,
-      // so it responds with a 404 Not Found status and a message indicating that the project was not found.
-      if (result.affectedRows === 0) {
-        return res.status(404).json({
-          message: "Project not found for the given student_id and project_id.",
-        });
-      }
-      // If at least one row was updated, it responds with a success message indicating that the project was marked as completed.
-      res.json({ message: "Project marked as completed" });
+    // SQL statement to set date_completed to NOW()
+    // This SQL statement is prepared to update the date_completed field in the student_projects table 
+    // to the current date and time for the specified student_id and project_id.
+    const sql = `
+      UPDATE student_projects 
+      SET date_completed = NOW() 
+      WHERE student_id = ? AND project_id = ?`;
+
+    const results = [];
+
+    // Process each project
+    // Iterates over each object in the studentProjectsMarked array.
+    // For each project, it executes the SQL query using the student_id and project_id.
+    studentProjectsMarked.forEach(({ student_id, project_id }) => {
+      // pool.query is used to interact with the database asynchronously.
+      pool.query(sql, [student_id, project_id], (err, result) => {
+        // If there is an error during the database query,
+        // it logs the error and returns a 500 Internal Server Error response with a message
+        // indicating a problem occurred while marking the projects as completed.
+        if (err) {
+          console.error("Database error:", err); // error log
+          return res
+            .status(500)
+            .json({ error: "Error marking projects as completed" });
+        }
+
+        // checks if any rows were affected by the query.
+        // If no rows were affected, it indicates that the project was not found,
+        // and it pushes a corresponding message into the results array.
+        if (result.affectedRows === 0) {
+          results.push({ student_id, project_id, date_completed: "Not Found" });
+        } else {
+          // If the update was successful,
+          // it pushes the updated data into the results array, including the formatted completion date.
+          results.push({
+            student_id,
+            project_id,
+            date_completed: new Date()
+              .toISOString()
+              .slice(0, 19)
+              .replace("T", " "),
+          });
+        }
+        // Once all queries are completed, return a response
+        // it checks if the number of results matches the number of projects marked.
+        //  If they match, it sends a JSON response back to the client with a success message and the results data.
+        if (results.length === studentProjectsMarked.length) {
+          res.json({ message: "Projects marked as completed", data: results });
+        }
+      });
     });
   }
 );
@@ -455,7 +476,6 @@ app.patch(
   } // End of endpoint processing here
 );
 
-
 // const image ="image"
 // const makeProjectimage = '<image src="makeProject-screenshot.png" style="width:30vw;"/>';
 
@@ -468,7 +488,9 @@ app.get(
   "/api/student-dashboard/SubmitProject/get-submission/:student_id/:project_id",
   (req, res) => {
     const { student_id, project_id } = req.params;
-    console.log(`This is the end points of student_id: ${student_id}, and project_id: ${project_id}.`);
+    console.log(
+      `This is the end points of student_id: ${student_id}, and project_id: ${project_id}.`
+    );
 
     const sql = `
   SELECT submission
@@ -492,39 +514,49 @@ app.get(
 
 // student-dashboard
 // Route for the learning objectives page
-app.get('/student-dashboard/learningObjectives', (req, res) => {
+app.get("/student-dashboard/learningObjectives", (req, res) => {
   // Respond with a message indicating the page is not available
-  res.send("This learning objectives page is not available and we will update soon. ");
+  res.send(
+    "This learning objectives page is not available and we will update soon. "
+  );
 });
 
 // Route for the instructions page
-app.get('/student-dashboard/instructions', (req, res) => {
+app.get("/student-dashboard/instructions", (req, res) => {
   // Respond with a message indicating the page is not available
   res.send("This instruction page is not available and we will update soon. ");
 });
 
 // Route for the video tutorial page
-app.get('/student-dashboard/videoTutorial', (req, res) => {
+app.get("/student-dashboard/videoTutorial", (req, res) => {
   // Respond with a message indicating the page is not available
-  res.send("This video tutorial page is not available and we will update soon. ");
+  res.send(
+    "This video tutorial page is not available and we will update soon. "
+  );
 });
 
 // Route for the market report page
-app.get('/student-dashboard/marketReport', (req, res) => {
+app.get("/student-dashboard/marketReport", (req, res) => {
   // Respond with a message indicating the page is not available
-  res.send("This market report page is not available and we will update soon. ");
+  res.send(
+    "This market report page is not available and we will update soon. "
+  );
 });
 
 // Route for the bonus challenge page
-app.get('/student-dashboard/bonusChallenge', (req, res) => {
+app.get("/student-dashboard/bonusChallenge", (req, res) => {
   // Respond with a message indicating the page is not available
-  res.send("This bonus challenge page is not available and we will update soon. ");
+  res.send(
+    "This bonus challenge page is not available and we will update soon. "
+  );
 });
 
 // Route for the take the quiz page
-app.get('/student-dashboard/takeTheQuiz', (req, res) => {
+app.get("/student-dashboard/takeTheQuiz", (req, res) => {
   // Respond with a message indicating the page is not available
-  res.send("This take the quiz page is not available and we will update soon. ");
+  res.send(
+    "This take the quiz page is not available and we will update soon. "
+  );
 });
 
 // -----------------------------------------end_of_takashi_section---------------------------------------------------
