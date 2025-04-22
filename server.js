@@ -1,16 +1,39 @@
+//express: A framework for building web applications.
 const express = require("express");
-const mysql = require("mysql2");
+const mysql = require("mysql2"); // Import mysql2 
 // Load Environment Variables
+// dotenv: A library for managing environment variables,
+// allowing you to safely manage secrets such as API keys.
 require("dotenv").config();
-const bodyParser = require("body-parser"); // added by takashi
-
-// const { UploadThing } = require("uploadthing");// added by takashi for the future Mission X
-const multer = require("multer"); // added by takashi
-const cors = require("cors");
+const bodyParser = require("body-parser");
+// cors: For managing cross-origin resource sharing,
+// allowing requests between different domains.
+const cors = require("cors"); // Make sure this is only once
+//Uploadthings
+const { createRouteHandler } = require("uploadthing/express");
+// Import the UploadThing handler
+const { uploadRouter } = require("./uploadthing"); // import uploadthing.js
+// Initialize app here
+// app is the main body of our web application.
+// We use it to set up the various routes (URLs).
 const app = express();
+const { param, validationResult } = require("express-validator"); // Import param instead of body
+// Middleware to handle JSON requests
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 //Middlewares
 app.use(bodyParser.json()); // added by takashi
+//Here we are allowing requests from the frontend URL
+// (in this case http://localhost:5173),
+// which allows the browser to access resources on a different domain.
+// app.use(
+//   cors({
+//     origin: "http://localhost:5173",
+//     methods: ["GET", "POST", "PATCH"], // added by takashi due to not working in testing uploadthings, sorry for team member to change in here.
+//     // Specify the frontend URL
+//   })
+// );
 app.use(cors("http://localhost:5173"));
 
 // Create the connection with database
@@ -195,7 +218,7 @@ app.get("/api/completions", (req, res) => {
 
 // Takashis endpoints here--------------------------------------------------------------------------------------------
 // Project Submission: Getting Submission Card, Patch(updating) Mark as complete Project
-// Submit projects: sending the imagery
+// Submit projects: sending the imagery by url retured the repose fro uploadthings.
 
 // Brown: Project Submission
 // Endpoint retrieves a list of student project submissions that are currently submitted but not completed.
@@ -204,14 +227,19 @@ app.get("/api/completions", (req, res) => {
 // profile_pic, gender(M/F), date_submitted, submission status,
 
 //  GET request endpoint that responds to requests made to /api/teacher-dashboard/ProjectSubmission/project-card .
-app.get("/api/teacher-dashboard/ProjectSubmission/project-card", (req, res) => {
-  // Selects data from the student table and student_projects tables and retrieves the following fields;
-  // INNER JOIN to link the student and student_projects tables based on the same unique student_id.
-  // WHERE clause filters results to include only those submissions
-  // that have been submitted (date_submitted IS NOT NULL) and
-  // have not been marked as completed (date_completed IS NULL)
-  // because teacher needs to track who submitted projects and still working on their own project which is not marked as completed project.
-  const sql = `
+app.get(
+  "/api/teacher-dashboard/ProjectSubmission/project-card/:teacherId",
+  async (req, res) => {
+    console.log("project submission endpoint hit");
+    const teacherId = req.params.teacherId;
+    console.log(teacherId);
+    // Selects data from the student table and student_projects tables and retrieves the following fields;
+    // INNER JOIN to link the student and student_projects tables based on the same unique student_id.
+    // WHERE clause filters results to include only those submissions
+    // that have been submitted (date_submitted IS NOT NULL) and
+    // have not been marked as completed (date_completed IS NULL)
+    // because teacher needs to track who submitted projects and still working on their own project which is not marked as completed project.
+    const sql = `
 SELECT 
     student.student_id, 
     student_projects.project_id, 
@@ -226,70 +254,147 @@ INNER JOIN
     student_projects ON student.student_id = student_projects.student_id
 WHERE 
     student_projects.date_submitted IS NOT NULL 
-    AND student_projects.date_completed IS NULL;
+    AND student_projects.date_completed IS NULL
+    AND student.teacher_id = (?);
   `;
-  // If I need to retrieve specific information from two tables, and the keys are fixed,
-  // a static query is fine.Fixed keys: In that case, use a static query so not required alley[].
-  pool.query(sql, (err, results) => {
-    if (err) {
+    // If I need to retrieve specific information from two tables, and the keys are fixed,
+    // a static query is fine.Fixed keys: In that case, use a static query so not required alley[].
+    try {
+      const result = await pool.query(sql, [teacherId]);
+      // If the query is successful, it returns the results as JSON format.
+      res.json(result);
+      console.log(result);
+    } catch (err) {
       // If an error occurs during execution,
       // it responds with a 500 Internal Server Error status and a message indicating an issue in retrieving projects.
-      res.status(500).send("Error retrieving projects");
-      return;
-    }
-    // If the query is successful, it returns the results as JSON format.
-    res.json(results);
-  });
-});
 
-//Project marked as completed
-// Endpoint allows a teacher to mark a specific project as completed for a student by updating the corresponding record in the database.
-// PATCH request endpoint that responds to requests made from frontend to /api/teacher-dashboard/ProjectSubmission/markCompleted.
+      res.status(500).send("Error retrieving projects");
+    }
+  }
+);
+
+// Brown: Project Submission
+// Defines a PATCH endpoint at /api/teacher-dashboard/ProjectSubmission/markCompleted.
+// It is designed to update the date_completed field in the student_projects table for a list of student projects that have been marked as completed.
+// Handles the marking of student projects as completed by validating input, executing SQL updates, and managing responses based on the outcome of those updates.
 app.patch(
   "/api/teacher-dashboard/ProjectSubmission/markCompleted",
   (req, res) => {
-    const { student_id, project_id } = req.body;
+    //  logs the incoming request body to the console for debugging purposes.
+    //  It helps in verifying what data is being sent to the server.
+    console.log("Received request body:", req.body); // Output the request body to the log
+    // Destructuring Request Body:
+    // The studentProjectsMarked variable is extracted from the request body.
+    // This variable is expected to be an array containing objects with student_id and project_id.
+    const { studentProjectsMarked } = req.body;
 
-    //input validation based on extracts student_id and project_id from the request body.
-    // checks if both values are provided. If either is missing,
-    // it responds with a 400 Bad Request status and an error message.
-    if (!student_id || !project_id) {
+    // Check that studentProjectsMarked is an array and is not empty
+    // Check if studentProjectsMarked is provided
+    // If studentProjectsMarked is not present in the request,
+    // a 400 Bad Request response is returned with an error message indicating that this field is required.
+    if (!studentProjectsMarked) {
       return res
         .status(400)
-        .json({ error: "student_id and project_id are required." });
+        .json({ error: "studentProjectsMarked is required." });
     }
 
-    // updates the student_projects table by setting date_completed to the current timestamp (NOW())
-    // for the specified student_id and project_id.
-    const sql =
-      "UPDATE student_projects SET date_completed = NOW() WHERE student_id = ? AND project_id = ?";
+    // Check if studentProjectsMarked is an array
+    // This checks if studentProjectsMarked is an array.
+    // If not, it returns a 400 response with a message stating that it must be an array.
+    if (!Array.isArray(studentProjectsMarked)) {
+      return res
+        .status(400)
+        .json({ error: "studentProjectsMarked must be an array." });
+    }
 
-    pool.query(sql, [student_id, project_id], (err, result) => {
-      // If there’s an error during the execution,
-      // it responds with a 500 Internal Server Error status and an error message.
-      if (err) {
-        return res
-          .status(500)
-          .json({ error: "Error marking project as completed" });
-      }
+    // Check if studentProjectsMarked is not empty
+    // This checks if the array is empty. If it is,
+    // a 400 response is returned indicating that the array cannot be empty.
+    if (studentProjectsMarked.length === 0) {
+      return res
+        .status(400)
+        .json({ error: "studentProjectsMarked must not be an empty array." });
+    }
 
-      // when no rows are not updating return 404
-      // If affectedRows is 0, it means no row matched the provided student_id and project_id,
-      // so it responds with a 404 Not Found status and a message indicating that the project was not found.
-      if (result.affectedRows === 0) {
-        return res.status(404).json({
-          message: "Project not found for the given student_id and project_id.",
-        });
-      }
-      // If at least one row was updated, it responds with a success message indicating that the project was marked as completed.
-      res.json({ message: "Project marked as completed" });
+    // SQL statement to set date_completed to NOW()
+    // This SQL statement is prepared to update the date_completed field in the student_projects table 
+    // to the current date and time for the specified student_id and project_id.
+    const sql = `
+      UPDATE student_projects 
+      SET date_completed = NOW() 
+      WHERE student_id = ? AND project_id = ?`;
+
+    const results = [];
+
+    // Process each project
+    // Iterates over each object in the studentProjectsMarked array.
+    // For each project, it executes the SQL query using the student_id and project_id.
+    studentProjectsMarked.forEach(({ student_id, project_id }) => {
+      // pool.query is used to interact with the database asynchronously.
+      pool.query(sql, [student_id, project_id], (err, result) => {
+        // If there is an error during the database query,
+        // it logs the error and returns a 500 Internal Server Error response with a message
+        // indicating a problem occurred while marking the projects as completed.
+        if (err) {
+          console.error("Database error:", err); // error log
+          return res
+            .status(500)
+            .json({ error: "Error marking projects as completed" });
+        }
+
+        // checks if any rows were affected by the query.
+        // If no rows were affected, it indicates that the project was not found,
+        // and it pushes a corresponding message into the results array.
+        if (result.affectedRows === 0) {
+          results.push({ student_id, project_id, date_completed: "Not Found" });
+        } else {
+          // If the update was successful,
+          // it pushes the updated data into the results array, including the formatted completion date.
+          results.push({
+            student_id,
+            project_id,
+            date_completed: new Date()
+              .toISOString()
+              .slice(0, 19)
+              .replace("T", " "),
+          });
+        }
+        // Once all queries are completed, return a response
+        // it checks if the number of results matches the number of projects marked.
+        //  If they match, it sends a JSON response back to the client with a success message and the results data.
+        if (results.length === studentProjectsMarked.length) {
+          res.json({ message: "Projects marked as completed", data: results });
+        }
+      });
     });
   }
 );
 
 // Brown: Submit Project
+// Set the route for UploadThing
+// This section configures the endpoint for uploading images.
+// It uses the uploadthing library to create a route to handle the images.
+app.use(
+  "/api/student-dashboard/SubmitProject/uploadthing",
+  createRouteHandler({
+    router: uploadRouter,
+    config: {
+      token: process.env.UPLOADTHING_TOKEN, // Get the token from an environment variable
+    },
+  })
+);
+
+// Here we define the content (text and image) to be returned.
+// Initially, uploadedImageUrl is set to a fixed image path.
+// Image content (use URL after upload)
+let uploadedImageUrl = "makeProject-screenshot.png"; // Initial
+
 // After clicking the button in the frontend, the URL of the image is passed to the backend server
-// using Postman, and this URL is sent in the submission as a string.
+// and this created new ufsUrl is sent in the submission as a string.
+// The /api/student-dashboard/SubmitProject/store-submission endpoint
+// receives the submission URL from the frontend.
+// The backend checks if the submission ufsUrl is provided and
+// updates the database record with this ufsUrl.
 
 app.patch(
   "/api/student-dashboard/SubmitProject/store-submission",
@@ -305,14 +410,18 @@ app.patch(
     if (!submission) {
       return res.status(400).json({
         status: "error",
-        message: "Missing ufsUrl in the request body.",
+
+    
+
+        message: "Missing submission ufsUrl in the request body.",
+
       });
     }
 
     // Check if student_id and project_id exist
     if (!student_id || !project_id) {
       return res.status(400).json({
-        message: "student_id and project_id are required",
+        message: "Both student_id and project_id are required",
       });
     }
 
@@ -361,13 +470,99 @@ app.patch(
 
       // Determine the response based on affected rows.
       if (results.affectedRows > 0) {
+        // If the update is successful, it returns a success message.
         res.status(200).json({ message: "Submission updated successfully" });
       } else {
+        // If the record to be updated is not found, it returns an appropriate error message.
         res.status(404).json({ message: "No record found to update" });
       }
     }); // The query callback ends here
   } // End of endpoint processing here
 );
+
+// const image ="image"
+// const makeProjectimage = '<image src="makeProject-screenshot.png" style="width:30vw;"/>';
+
+// app.get("/image", (req, res) => {
+//   console.log("image end point hit");
+//   res.json({ content: image });
+// });
+
+app.get(
+  "/api/student-dashboard/SubmitProject/get-submission/:student_id/:project_id",
+  (req, res) => {
+    const { student_id, project_id } = req.params;
+    console.log(
+      `This is the end points of student_id: ${student_id}, and project_id: ${project_id}.`
+    );
+
+    const sql = `
+  SELECT submission
+  FROM student_projects
+  WHERE student_id = ? AND project_id = ?;
+  `;
+    pool.query(sql, [student_id, project_id], (error, results) => {
+      if (error) {
+        console.error("Error fetching data:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+
+      if (results.length > 0) {
+        res.status(200).json({ submission: results[0].submission });
+      } else {
+        res.status(404).json({ message: "No record found" });
+      }
+    });
+  }
+);
+
+// student-dashboard
+// Route for the learning objectives page
+app.get("/student-dashboard/learningObjectives", (req, res) => {
+  // Respond with a message indicating the page is not available
+  res.send(
+    "This learning objectives page is not available and we will update soon. "
+  );
+});
+
+// Route for the instructions page
+app.get("/student-dashboard/instructions", (req, res) => {
+  // Respond with a message indicating the page is not available
+  res.send("This instruction page is not available and we will update soon. ");
+});
+
+// Route for the video tutorial page
+app.get("/student-dashboard/videoTutorial", (req, res) => {
+  // Respond with a message indicating the page is not available
+  res.send(
+    "This video tutorial page is not available and we will update soon. "
+  );
+});
+
+// Route for the market report page
+app.get("/student-dashboard/marketReport", (req, res) => {
+  // Respond with a message indicating the page is not available
+  res.send(
+    "This market report page is not available and we will update soon. "
+  );
+});
+
+// Route for the bonus challenge page
+app.get("/student-dashboard/bonusChallenge", (req, res) => {
+  // Respond with a message indicating the page is not available
+  res.send(
+    "This bonus challenge page is not available and we will update soon. "
+  );
+});
+
+// Route for the take the quiz page
+app.get("/student-dashboard/takeTheQuiz", (req, res) => {
+  // Respond with a message indicating the page is not available
+  res.send(
+    "This take the quiz page is not available and we will update soon. "
+  );
+});
+
 // -----------------------------------------end_of_takashi_section---------------------------------------------------
 
 app
