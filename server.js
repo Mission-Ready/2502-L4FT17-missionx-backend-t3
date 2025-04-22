@@ -1,6 +1,6 @@
 //express: A framework for building web applications.
 const express = require("express");
-const mysql = require("mysql2");
+const mysql = require('mysql2/promise'); // Import mysql2 with Promise support
 // Load Environment Variables
 // dotenv: A library for managing environment variables,
 // allowing you to safely manage secrets such as API keys.
@@ -17,7 +17,8 @@ const { uploadRouter } = require("./uploadthing"); // import uploadthing.js
 // app is the main body of our web application.
 // We use it to set up the various routes (URLs).
 const app = express();
-
+const { param, validationResult } = require('express-validator'); // Import param instead of body
+// Middleware to handle JSON requests
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -226,7 +227,10 @@ app.get("/api/completions", (req, res) => {
 // profile_pic, gender(M/F), date_submitted, submission status,
 
 //  GET request endpoint that responds to requests made to /api/teacher-dashboard/ProjectSubmission/project-card .
-app.get("/api/teacher-dashboard/ProjectSubmission/project-card", (req, res) => {
+app.get("/api/teacher-dashboard/ProjectSubmission/project-card/:teacherId", async (req, res) => {
+  console.log("project submission endpoint hit")
+  const teacherId = req.params.teacherId;
+  console.log(teacherId)
   // Selects data from the student table and student_projects tables and retrieves the following fields;
   // INNER JOIN to link the student and student_projects tables based on the same unique student_id.
   // WHERE clause filters results to include only those submissions
@@ -248,21 +252,57 @@ INNER JOIN
     student_projects ON student.student_id = student_projects.student_id
 WHERE 
     student_projects.date_submitted IS NOT NULL 
-    AND student_projects.date_completed IS NULL;
+    AND student_projects.date_completed IS NULL
+    AND student.teacher_id = (?);
   `;
   // If I need to retrieve specific information from two tables, and the keys are fixed,
   // a static query is fine.Fixed keys: In that case, use a static query so not required alley[].
-  pool.query(sql, (err, results) => {
-    if (err) {
-      // If an error occurs during execution,
+   try {
+    const result = await pool.query(sql, [teacherId])
+     // If the query is successful, it returns the results as JSON format.
+    res.json(result);
+    console.log(result)
+  } catch (err) {
+    // If an error occurs during execution,
       // it responds with a 500 Internal Server Error status and a message indicating an issue in retrieving projects.
-      res.status(500).send("Error retrieving projects");
-      return;
-    }
-    // If the query is successful, it returns the results as JSON format.
-    res.json(results);
-  });
+     
+    res.status(500).send("Error retrieving projects");
+  };
 });
+
+// GET endpoint to retrieve teacher information
+// app.get('/api/teacher-dashboard/ProjectSubmission/teacher/:teacherId', 
+//   [
+//       param('teacherId').isNumeric().withMessage('teacherId must be a numeric value')
+//   ],
+//   async (req, res) => {
+//       const teacherId = req.params.teacherId;
+// 
+//       // Validate request
+//       const errors = validationResult(req);
+//       if (!errors.isEmpty()) {
+//           return res.status(400).json({ errors: errors.array() });
+//       }
+// 
+//       
+//       const sql = "SELECT * FROM teacher WHERE teacher_id = ?"; // teachers table
+// 
+//       try {
+//           // Query the database
+//           const [results] = await pool.query(sql, [teacherId]);
+// 
+//           // If results are found
+//           if (results.length > 0) {
+//               return res.json(results[0]); // Return the information of the first teacher.
+//           } else {
+//               return res.status(404).json({ message: "Teacher not found" });
+//           }
+//       } catch (err) {
+//           console.error("Database error:", err); // Log the error
+//           return res.status(500).json({ error: "Internal server error", details: err.message });
+//       }
+//   }
+// );
 
 //Project marked as completed
 // Endpoint allows a teacher to mark a specific project as completed for a student by updating the corresponding record in the database.
@@ -417,12 +457,12 @@ app.patch(
 
 
 // const image ="image"
-const makeProjectimage = '<image src="makeProject-screenshot.png" style="width:30vw;"/>';
+// const makeProjectimage = '<image src="makeProject-screenshot.png" style="width:30vw;"/>';
 
-app.get("/image", (req, res) => {
-  console.log("image end point hit");
-  res.json({ content: image });
-});
+// app.get("/image", (req, res) => {
+//   console.log("image end point hit");
+//   res.json({ content: image });
+// });
 
 app.get(
   "/api/student-dashboard/SubmitProject/get-submission/:student_id/:project_id",
