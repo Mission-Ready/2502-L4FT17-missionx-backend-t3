@@ -1,6 +1,6 @@
 //express: A framework for building web applications.
 const express = require("express");
-const mysql = require("mysql2"); // Import mysql2 
+const mysql = require("mysql2"); // Import mysql2
 // Load Environment Variables
 // dotenv: A library for managing environment variables,
 // allowing you to safely manage secrets such as API keys.
@@ -229,7 +229,7 @@ app.get("/api/completions", (req, res) => {
 //  GET request endpoint that responds to requests made to /api/teacher-dashboard/ProjectSubmission/project-card .
 app.get(
   "/api/teacher-dashboard/ProjectSubmission/project-card/:teacherId",
-  async (req, res) => {
+   (req, res) => {
     console.log("project submission endpoint hit");
     const teacherId = req.params.teacherId;
     console.log(teacherId);
@@ -259,17 +259,29 @@ WHERE
   `;
     // If I need to retrieve specific information from two tables, and the keys are fixed,
     // a static query is fine.Fixed keys: In that case, use a static query so not required alley[].
-    try {
-      const result = await pool.query(sql, [teacherId]);
-      // If the query is successful, it returns the results as JSON format.
-      res.json(result);
-      console.log(result);
-    } catch (err) {
-      // If an error occurs during execution,
-      // it responds with a 500 Internal Server Error status and a message indicating an issue in retrieving projects.
-
-      res.status(500).send("Error retrieving projects");
-    }
+    pool.query(sql, [teacherId], (error, results) => {
+            if (error) {
+              console.error("Error fetching data:", error);
+              return res.status(500).json({ message: "Internal server error" });
+            }
+      
+            if (results.length > 0) {
+              res.status(200).json(results);
+            } else {
+              res.status(404).json({  status: "success", data: results });
+            }
+          })
+//     try {
+//       const result = await pool.query(sql, [teacherId]);
+//       // If the query is successful, it returns the results as JSON format.
+//       res.json(result);
+//       console.log(result);
+//     } catch (err) {
+//       // If an error occurs during execution,
+//       // it responds with a 500 Internal Server Error status and a message indicating an issue in retrieving projects.
+// 
+//       res.status(500).send("Error retrieving projects");
+//     }
   }
 );
 
@@ -317,7 +329,7 @@ app.patch(
     }
 
     // SQL statement to set date_completed to NOW()
-    // This SQL statement is prepared to update the date_completed field in the student_projects table 
+    // This SQL statement is prepared to update the date_completed field in the student_projects table
     // to the current date and time for the specified student_id and project_id.
     const sql = `
       UPDATE student_projects 
@@ -436,6 +448,17 @@ app.patch(
     WHERE student_id = ? AND project_id = ?; 
   `;
 
+    // // Ensure submission is a valid string (buffer conversion)
+    // let submissionBuffer;
+    // try {
+    //   submissionBuffer = Buffer.from(submission, "utf-8"); // 明示的にUTF-8で変換
+    // } catch (error) {
+    //   return res.status(400).json({
+    //     status: "error",
+    //     message: "Invalid submission format: " + error.message,
+    //   });
+    // }
+
     // Execute the SQL query.
 
     // If the submission content is different each time, I will receive a dynamic URL.
@@ -484,33 +507,33 @@ app.patch(
 //   res.json({ content: image });
 // });
 
-app.get(
-  "/api/student-dashboard/SubmitProject/get-submission/:student_id/:project_id",
-  (req, res) => {
-    const { student_id, project_id } = req.params;
-    console.log(
-      `This is the end points of student_id: ${student_id}, and project_id: ${project_id}.`
-    );
-
-    const sql = `
-  SELECT submission
-  FROM student_projects
-  WHERE student_id = ? AND project_id = ?;
-  `;
-    pool.query(sql, [student_id, project_id], (error, results) => {
-      if (error) {
-        console.error("Error fetching data:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-
-      if (results.length > 0) {
-        res.status(200).json({ submission: results[0].submission });
-      } else {
-        res.status(404).json({ message: "No record found" });
-      }
-    });
-  }
-);
+// app.get(
+//   "/api/student-dashboard/SubmitProject/get-submission/:student_id/:project_id",
+//   (req, res) => {
+//     const { student_id, project_id } = req.params;
+//     console.log(
+//       `This is the end points of student_id: ${student_id}, and project_id: ${project_id}.`
+//     );
+// 
+//     const sql = `
+//   SELECT submission
+//   FROM student_projects
+//   WHERE student_id = ? AND project_id = ?;
+//   `;
+//     pool.query(sql, [student_id, project_id], (error, results) => {
+//       if (error) {
+//         console.error("Error fetching data:", error);
+//         return res.status(500).json({ message: "Internal server error" });
+//       }
+// 
+//       if (results.length > 0) {
+//         res.status(200).json({ submission: results[0].submission });
+//       } else {
+//         res.status(404).json({ message: "No record found" });
+//       }
+//     });
+//   }
+// );
 
 // student-dashboard
 // Route for the learning objectives page
