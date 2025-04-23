@@ -239,6 +239,9 @@ app.get(
     // that have been submitted (date_submitted IS NOT NULL) and
     // have not been marked as completed (date_completed IS NULL)
     // because teacher needs to track who submitted projects and still working on their own project which is not marked as completed project.
+    // The SQL query retrieves relevant fields from the student and student_projects tables.
+    // It filters the results to include only submissions that have been made (not NULL for date_submitted) and have not been marked as completed (where date_completed is NULL).
+    // The results are linked to a specific teacher using the teacherId.
     const sql = `
 SELECT 
     student.student_id, 
@@ -261,13 +264,16 @@ WHERE
     // a static query is fine.Fixed keys: In that case, use a static query so not required alley[].
     pool.query(sql, [teacherId], (error, results) => {
             if (error) {
+              // If an error occurs, a 500 status code is returned.
               console.error("Error fetching data:", error);
               return res.status(500).json({ message: "Internal server error" });
             }
       
             if (results.length > 0) {
+              // If successful, the results are sent back as a JSON response. 
               res.status(200).json(results);
             } else {
+              // If no results are found, a 404 status is returned.
               res.status(404).json({  status: "success", data: results });
             }
           })
@@ -422,7 +428,6 @@ app.patch(
     if (!submission) {
       return res.status(400).json({
         status: "error",
-
     
 
         message: "Missing submission ufsUrl in the request body.",
