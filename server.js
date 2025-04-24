@@ -544,53 +544,6 @@ app.patch(
 //   }
 // );
 
-// student-dashboard
-// Route for the learning objectives page
-app.get("/student-dashboard/learningObjectives", (req, res) => {
-  // Respond with a message indicating the page is not available
-  res.send(
-    "This learning objectives page is not available and we will update soon. "
-  );
-});
-
-// Route for the instructions page
-app.get("/student-dashboard/instructions", (req, res) => {
-  // Respond with a message indicating the page is not available
-  res.send("This instruction page is not available and we will update soon. ");
-});
-
-// Route for the video tutorial page
-app.get("/student-dashboard/videoTutorial", (req, res) => {
-  // Respond with a message indicating the page is not available
-  res.send(
-    "This video tutorial page is not available and we will update soon. "
-  );
-});
-
-// Route for the market report page
-app.get("/student-dashboard/marketReport", (req, res) => {
-  // Respond with a message indicating the page is not available
-  res.send(
-    "This market report page is not available and we will update soon. "
-  );
-});
-
-// Route for the bonus challenge page
-app.get("/student-dashboard/bonusChallenge", (req, res) => {
-  // Respond with a message indicating the page is not available
-  res.send(
-    "This bonus challenge page is not available and we will update soon. "
-  );
-});
-
-// Route for the take the quiz page
-app.get("/student-dashboard/takeTheQuiz", (req, res) => {
-  // Respond with a message indicating the page is not available
-  res.send(
-    "This take the quiz page is not available and we will update soon. "
-  );
-});
-
 // -----------------------------------------end_of_takashi_section---------------------------------------------------
 
 app
