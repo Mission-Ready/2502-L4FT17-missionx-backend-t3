@@ -4,13 +4,14 @@ require("dotenv").config();
 const cors = require("cors");
 const bodyParser = require("body-parser");
 
-
-
 const app = express();
 
-
-app.use(cors({origin: ['http://localhost:5173'],  // Replace with the URL of your frontend
-  methods : ['GET', 'POST'],}));
+app.use(
+  cors({
+    origin: ["http://localhost:5173"], // Replace with the URL of your frontend
+    methods: ["GET", "POST"],
+  })
+);
 app.use(express.json());
 app.use(bodyParser.json()); // ✅ required to parse JSON bodies
 
@@ -23,7 +24,6 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0,
 });
-
 
 //example
 // app.get("/api/teacherdashboard/helprequest", (req, res) => {
@@ -39,61 +39,10 @@ const pool = mysql.createPool({
 //   });
 // });
 
-
 // Shazias Endpoints here
-// student Log in End point 
+// student Log in End point
 
 app.post("/login", (req, res) => {
-  console.log('login endpoint hit')
-  console.log(req.body)
-  const { email, password } = req.body;
-  console.log(email, password)
-  // const query = `SELECT name, password FROM Log_in_details WHERE Email = ?;`;
-
-  pool.query(
-    `SELECT name, password FROM Log_in_details WHERE Email = ?;`,
-    [email],
-    (err, result) => {
-      console.log(result)
-      if (err) {
-        console.error("Database query error", err);
-        return res.status(501).json({
-          status: "error",
-          message: "Something went wrong with the database query",
-        });
-      }
-
-      // Check if no result is returned (invalid email)
-      if (result.length === 0) {
-        console.log("invalid email or password")
-        return res.status(401).json({
-          status: "error",
-          message: "Invalid email or password",
-        });
-      }
-
-      // Directly compare the password in plain text
-      if (req.body.password === result[0].password) {
-        // Return user info if login is successful
-        return res.status(200).json({
-          status: "success",
-          name: result[0].name,
-        });
-      } else {
-        // If password does not match
-        return res.status(401).json({
-          status: "error",
-          message: "Invalid email or password",
-        });
-      }
-    }
-  );
-});
-
-
-// Teacher Log in End point 
-
-app.post("/login/teacher", (req, res) => {
   console.log("login endpoint hit");
   console.log(req.body);
   const { email, password } = req.body;
@@ -101,7 +50,7 @@ app.post("/login/teacher", (req, res) => {
   // const query = `SELECT name, password FROM Log_in_details WHERE Email = ?;`;
 
   pool.query(
-    `SELECT name, password FROM Teacher_log_in_details WHERE Email = ?;`,
+    `SELECT name, password FROM student WHERE Email = ?;`,
     [email],
     (err, result) => {
       console.log(result);
@@ -128,6 +77,7 @@ app.post("/login/teacher", (req, res) => {
         return res.status(200).json({
           status: "success",
           name: result[0].name,
+          id: result.insertId,
         });
       } else {
         // If password does not match
@@ -140,12 +90,61 @@ app.post("/login/teacher", (req, res) => {
   );
 });
 
-// Student Sign Up 
+// Teacher Log in End point
+
+app.post("/login/teacher", (req, res) => {
+  console.log("login endpoint hit");
+  console.log(req.body);
+  const { email, password } = req.body;
+  console.log(email, password);
+  // const query = `SELECT name, password FROM Log_in_details WHERE Email = ?;`;
+
+  pool.query(
+    `SELECT name, password FROM teacher WHERE Email = ?;`,
+    [email],
+    (err, result) => {
+      console.log(result);
+      if (err) {
+        console.error("Database query error", err);
+        return res.status(501).json({
+          status: "error",
+          message: "Something went wrong with the database query",
+        });
+      }
+
+      // Check if no result is returned (invalid email)
+      if (result.length === 0) {
+        console.log("invalid email or password");
+        return res.status(401).json({
+          status: "error",
+          message: "Invalid email or password",
+        });
+      }
+
+      // Directly compare the password in plain text
+      if (req.body.password === result[0].password) {
+        // Return user info if login is successful
+        return res.status(200).json({
+          status: "success",
+          name: result[0].name,
+          id: result.insertId,
+        });
+      } else {
+        // If password does not match
+        return res.status(401).json({
+          status: "error",
+          message: "Invalid email or password",
+        });
+      }
+    }
+  );
+});
+
+// Student Sign Up
 
 app.post("/signup/student", (req, res) => {
-  console.log('student signup endpoint hit');
+  console.log("student signup endpoint hit");
   console.log(req.body);
-  
 
   const { name, email, password, confirmPassword } = req.body;
 
@@ -158,7 +157,9 @@ app.post("/signup/student", (req, res) => {
   );
 
   pool.query(
-    `Select email FROM Log_in_details Where Email = ?; `, [email], (err, result) => {
+    `Select email FROM student Where Email = ?; `,
+    [email],
+    (err, result) => {
       if (err) {
         console.error("Database error during email check", err);
         return res.status(500).json({
@@ -167,18 +168,16 @@ app.post("/signup/student", (req, res) => {
         });
       }
       if (result.length > 0) {
-        return res.status(400).json(
-          {
-            status: "EmailError",
-            message: "Email already exists",
-          }
-        );
+        return res.status(400).json({
+          status: "EmailError",
+          message: "Email already exists",
+        });
       }
 
       pool.query(
-        `INSERT INTO Log_in_details (name,email,password,confirmPassword)
-VALUES (?,?,?,?);`,
-        [name, email, password, confirmPassword],
+        `INSERT INTO student (name,email,password)
+VALUES (?,?,?);`,
+        [name, email, password],
         (err, result) => {
           console.log(result);
           if (err) {
@@ -188,21 +187,16 @@ VALUES (?,?,?,?);`,
               message: "Something went wrong with the sign up process",
             });
           }
-      
+
           return res.status(201).json({
             status: "Success",
-            message: "Student sign up successful"
+            message: "Student sign up successful",
           });
-          
         }
       );
-
-
-    });
+    }
+  );
 });
-
-
-
 
 // Teacher Sign up Endpoint
 
@@ -221,7 +215,7 @@ app.post("/signup/teacher", (req, res) => {
   );
 
   pool.query(
-    `Select email Teacher_log_in_details Where Email = ?; `,
+    `SELECT email FROM teacher Where Email = ?;`,
     [email],
     (err, result) => {
       if (err) {
@@ -239,9 +233,9 @@ app.post("/signup/teacher", (req, res) => {
       }
 
       pool.query(
-        `INSERT INTO Teacher_log_in_details (name,email,password,confirmPassword)
-VALUES (?,?,?,?);`,
-        [name, email, password, confirmPassword],
+        `INSERT INTO teacher (name,email,password)
+VALUES (?,?,?);`,
+        [name, email, password],
         (err, result) => {
           console.log(result);
           if (err) {
@@ -254,12 +248,12 @@ VALUES (?,?,?,?);`,
           return res.status(201).json({
             status: "Success",
             message: "Teacher sign up successful",
+            id: result.insertId,
           });
         }
       );
     }
   );
-  
 });
 
 // Kerrys enpoints here
@@ -269,7 +263,6 @@ VALUES (?,?,?,?);`,
 // Eugenes end points here
 
 // Takashis endpoints here
-
 
 app
   .listen(process.env.PORT, () => {
