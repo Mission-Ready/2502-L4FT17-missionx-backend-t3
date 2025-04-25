@@ -24,16 +24,7 @@ app.use(express.urlencoded({ extended: true }));
 
 //Middlewares
 app.use(bodyParser.json()); // added by takashi
-//Here we are allowing requests from the frontend URL
-// (in this case http://localhost:5173),
-// which allows the browser to access resources on a different domain.
-// app.use(
-//   cors({
-//     origin: "http://localhost:5173",
-//     methods: ["GET", "POST", "PATCH"], // added by takashi due to not working in testing uploadthings, sorry for team member to change in here.
-//     // Specify the frontend URL
-//   })
-// );
+
 app.use(cors("http://localhost:5173"));
 
 // Create the connection with database
@@ -221,6 +212,7 @@ app.get("/api/completions", (req, res) => {
 // Submit projects: sending the imagery by url retured the repose fro uploadthings.
 
 // Brown: Project Submission
+// Queries for teachers join multiple tables and filter the results based on specific conditions (such as submissions being incomplete).
 // Endpoint retrieves a list of student project submissions that are currently submitted but not completed.
 // One endpoint retrieves project submission data for such reasons.
 // Getting the response of property from database about student_id, project_id, name of student,
@@ -402,6 +394,53 @@ app.use(
   })
 );
 
+// This is used to obtain submission information related to specific students and projects.
+// This is used by students to access their own submission information.
+// Define a GET endpoint to fetch submission details for a student and project
+// This is where clients can request submission details.
+// The query for students retrieves a single or more submission information based on the student ID and project ID using alley.
+app.get(
+  "/api/student-dashboard/SubmitProject/get-submission/:student_id/:project_id",
+  (req, res) => {
+    // Extract student_id and project_id from the request parameters
+    // The req.params object contains route parameters.
+    // Here, student_id and project_id are extracted from the URL.
+    const { student_id, project_id } = req.params;
+    console.log(
+      `This is the endpoint for student_id: ${student_id}, and project_id: ${project_id}.`
+    );
+
+    // SQL query to select the submission URL from the database
+    // to select the submission field from the student_projects table based on the provided student_id and project_id.
+    const sql = `
+      SELECT submission
+      FROM student_projects
+      WHERE student_id = ? AND project_id = ?;
+    `;
+    
+    // Execute the SQL query
+    // The pool.query method executes the SQL query against the database.
+    // The results are processed in a callback function.
+    pool.query(sql, [student_id, project_id], (error, results) => {
+      // Check if there was an error executing the query
+      if (error) {
+        console.error("Error fetching data:", error);
+        // Send a 500 Internal Server Error response if an error occurred
+        return res.status(500).json({ message: "Internal server error" });
+      }
+
+      // Check if any results were returned from the query
+      if (results.length > 0) {
+        // If a submission was found, send it back in a 200 OK response
+        res.status(200).json({ submission: results[0].submission });
+      } else {
+        // If no submission was found, send a 404 Not Found response
+        res.status(404).json({ message: "No record found" });
+      }
+    });
+  }
+);
+
 // Here we define the content (text and image) to be returned.
 // Initially, uploadedImageUrl is set to a fixed image path.
 // Image content (use URL after upload)
@@ -511,38 +550,8 @@ app.patch(
 // const image ="image"
 // const makeProjectimage = '<image src="makeProject-screenshot.png" style="width:30vw;"/>';
 
-// app.get("/image", (req, res) => {
-//   console.log("image end point hit");
-//   res.json({ content: image });
-// });
 
-// app.get(
-//   "/api/student-dashboard/SubmitProject/get-submission/:student_id/:project_id",
-//   (req, res) => {
-//     const { student_id, project_id } = req.params;
-//     console.log(
-//       `This is the end points of student_id: ${student_id}, and project_id: ${project_id}.`
-//     );
-// 
-//     const sql = `
-//   SELECT submission
-//   FROM student_projects
-//   WHERE student_id = ? AND project_id = ?;
-//   `;
-//     pool.query(sql, [student_id, project_id], (error, results) => {
-//       if (error) {
-//         console.error("Error fetching data:", error);
-//         return res.status(500).json({ message: "Internal server error" });
-//       }
-// 
-//       if (results.length > 0) {
-//         res.status(200).json({ submission: results[0].submission });
-//       } else {
-//         res.status(404).json({ message: "No record found" });
-//       }
-//     });
-//   }
-// );
+
 
 // -----------------------------------------end_of_takashi_section---------------------------------------------------
 
