@@ -24,7 +24,6 @@ app.use(express.urlencoded({ extended: true }));
 
 //Middlewares
 app.use(bodyParser.json()); // added by takashi
-
 app.use(cors("http://localhost:5173"));
 
 // Create the connection with database
@@ -224,7 +223,7 @@ app.get(
    (req, res) => {
     console.log("project submission endpoint hit");
     const teacherId = req.params.teacherId;
-    console.log(teacherId);
+    console.log("teacher_id:",teacherId);
     // Selects data from the student table and student_projects tables and retrieves the following fields;
     // INNER JOIN to link the student and student_projects tables based on the same unique student_id.
     // WHERE clause filters results to include only those submissions
@@ -495,18 +494,6 @@ app.patch(
         submission = ? 
     WHERE student_id = ? AND project_id = ?; 
   `;
-
-    // // Ensure submission is a valid string (buffer conversion)
-    // let submissionBuffer;
-    // try {
-    //   submissionBuffer = Buffer.from(submission, "utf-8"); // 明示的にUTF-8で変換
-    // } catch (error) {
-    //   return res.status(400).json({
-    //     status: "error",
-    //     message: "Invalid submission format: " + error.message,
-    //   });
-    // }
-
     // Execute the SQL query.
 
     // If the submission content is different each time, I will receive a dynamic URL.
@@ -546,12 +533,6 @@ app.patch(
     }); // The query callback ends here
   } // End of endpoint processing here
 );
-
-// const image ="image"
-// const makeProjectimage = '<image src="makeProject-screenshot.png" style="width:30vw;"/>';
-
-
-
 
 // -----------------------------------------end_of_takashi_section---------------------------------------------------
 
