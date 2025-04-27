@@ -3,7 +3,7 @@ const express = require("express");
 const mysql = require("mysql2"); // Import mysql2
 // Load Environment Variables
 // dotenv: A library for managing environment variables,
-// allowing you to safely manage secrets such as API keys.
+// allowing me to safely manage secrets such as API keys.
 require("dotenv").config();
 const bodyParser = require("body-parser");
 // cors: For managing cross-origin resource sharing,
@@ -268,17 +268,7 @@ WHERE
               res.status(404).json({  status: "success", data: results });
             }
           })
-//     try {
-//       const result = await pool.query(sql, [teacherId]);
-//       // If the query is successful, it returns the results as JSON format.
-//       res.json(result);
-//       console.log(result);
-//     } catch (err) {
-//       // If an error occurs during execution,
-//       // it responds with a 500 Internal Server Error status and a message indicating an issue in retrieving projects.
-// 
-//       res.status(500).send("Error retrieving projects");
-//     }
+
   }
 );
 
