@@ -8,7 +8,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: ["http://localhost:5173"], // Replace with the URL of your frontend
+    origin: ["http://localhost:5173"], // front end URL
     methods: ["GET", "POST"],
   })
 );
@@ -39,7 +39,8 @@ const pool = mysql.createPool({
 //   });
 // });
 
-// Shazias Endpoints here
+// Shazias Endpoints 
+
 // student Log in End point
 
 app.post("/login", (req, res) => {
@@ -47,7 +48,7 @@ app.post("/login", (req, res) => {
   console.log(req.body);
   const { email, password } = req.body;
   console.log(email, password);
-  // const query = `SELECT name, password FROM Log_in_details WHERE Email = ?;`;
+
 
   pool.query(
     `SELECT name, password FROM student WHERE Email = ?;`,
@@ -71,7 +72,7 @@ app.post("/login", (req, res) => {
         });
       }
 
-      // Directly compare the password in plain text
+      // compare the password 
       if (req.body.password === result[0].password) {
         // Return user info if login is successful
         return res.status(200).json({
@@ -97,7 +98,7 @@ app.post("/login/teacher", (req, res) => {
   console.log(req.body);
   const { email, password } = req.body;
   console.log(email, password);
-  // const query = `SELECT name, password FROM Log_in_details WHERE Email = ?;`;
+  
 
   pool.query(
     `SELECT name, password FROM teacher WHERE Email = ?;`,
@@ -121,7 +122,7 @@ app.post("/login/teacher", (req, res) => {
         });
       }
 
-      // Directly compare the password in plain text
+      // compare the password 
       if (req.body.password === result[0].password) {
         // Return user info if login is successful
         return res.status(200).json({
@@ -146,7 +147,22 @@ app.post("/signup/student", (req, res) => {
   console.log("student signup endpoint hit");
   console.log(req.body);
 
+
   const { name, email, password, confirmPassword } = req.body;
+
+  if (!name || !email || !password || !confirmPassword) {
+    return res.status(400).json({
+      status: "ValidationError",
+      message: "All fields are required",
+    });
+  }
+
+  if (password !== confirmPassword) {
+    return res.status(400).json({
+      status: "ValidationError",
+      message: "Passwords do not match",
+    });
+  }
 
   console.log(
     "Received student sign-up form:",
@@ -156,6 +172,7 @@ app.post("/signup/student", (req, res) => {
     confirmPassword
   );
 
+  //check if email already exists
   pool.query(
     `Select email FROM student Where Email = ?; `,
     [email],
@@ -167,13 +184,15 @@ app.post("/signup/student", (req, res) => {
           message: "Server error during email check",
         });
       }
+
+      //if email already exists error
       if (result.length > 0) {
         return res.status(400).json({
           status: "EmailError",
           message: "Email already exists",
         });
       }
-
+//if email is valid insert the details into the DB
       pool.query(
         `INSERT INTO student (name,email,password)
 VALUES (?,?,?);`,
@@ -206,6 +225,20 @@ app.post("/signup/teacher", (req, res) => {
 
   const { name, email, password, confirmPassword } = req.body;
 
+    if (!name || !email || !password || !confirmPassword) {
+      return res.status(400).json({
+        status: "ValidationError",
+        message: "All fields are required",
+      });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        status: "ValidationError",
+        message: "Passwords do not match",
+      });
+    }
+
   console.log(
     "Received teacher sign-up form:",
     name,
@@ -214,6 +247,7 @@ app.post("/signup/teacher", (req, res) => {
     confirmPassword
   );
 
+  //check if email already exists
   pool.query(
     `SELECT email FROM teacher Where Email = ?;`,
     [email],
@@ -225,6 +259,8 @@ app.post("/signup/teacher", (req, res) => {
           message: "Server error during email check",
         });
       }
+
+      //if email already exists error
       if (result.length > 0) {
         return res.status(400).json({
           status: "EmailError",
@@ -232,6 +268,7 @@ app.post("/signup/teacher", (req, res) => {
         });
       }
 
+      //if email is valid insert the details into the DB
       pool.query(
         `INSERT INTO teacher (name,email,password)
 VALUES (?,?,?);`,
